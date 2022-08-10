@@ -1,0 +1,14 @@
+Package: miae
+Title: Multiple Imputation Through Autoencoders
+Version: 0.0.0.9000
+Authors@R: c(
+    person(given = "Yongshi", family ="Deng", email = "yongshi.deng@auckland.ac.nz",
+           role = c("aut","cre"),comment =c(ORCID = "0000-0001-5845-859X")),
+    person(given = "Thomas", family = "Lumley", email = "t.lumley@auckland.ac.nz",
+           role = "ths")
+  ) 
+Description: Multiple Imputation Through denoising and variational autoencoders.
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.0
