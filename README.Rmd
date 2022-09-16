@@ -22,15 +22,62 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-miae is an R package for multiple imputation through autoencoders. It's currently under development.
+**miae** is an R package for multiple imputation through autoencoders built with **Torch**. It's currently under development.
 
 
 ## 1. Installation
 
 You can install the current development version of miae from [GitHub](https://github.com/) with:
-
 ``` r
 # install.packages("devtools")
-devtools::install_github("agnesdeng/miae")
+#devtools::install_github("agnesdeng/miae")
 ```
 
+``` {r}
+# install.packages("devtools")
+#devtools::install_github("agnesdeng/miae")
+library(miae)
+```
+
+## 2. Multiple imputation with denoising autoencoder with dropout
+```{r}
+#load the penguins dataset
+library(palmerpenguins)
+#5 variables have missing values
+colSums(is.na(penguins))
+
+
+midae.imputed<-midae(data=penguins,m=5,epochs=10,
+                     latent.dim = 16, learning.rate = 0.001, batch.size = 50,
+                     encoder.structure = c(32,16),decoder.structure = c(16,32),
+                     dropout.prob = 0.5)
+
+#obtain the fifth imputed dataset
+midae.imputed[[5]]
+
+
+#show the imputed values for missing entries in the variable "bill_length_mm"
+show_var(imputation.list=midae.imputed,var.name="bill_length_mm",original.data = penguins)
+
+```
+
+## 3. Multiple imputation with variational autoencoder
+
+```{r}
+#load the penguins dataset
+library(palmerpenguins)
+#5 variables have missing values
+colSums(is.na(penguins))
+
+
+mivae.imputed<-mivae(data=penguins,m=5,epochs=10,
+                     latent.dim = 16, learning.rate = 0.001, batch.size = 50,
+                     encoder.structure = c(32,16),decoder.structure = c(16,32))
+
+#obtain the fifth imputed dataset
+midae.imputed[[5]]
+
+
+#show the imputed values for missing entries in the variable "bill_length_mm"
+show_var(imputation.list=midae.imputed,var.name="bill_length_mm",original.data = penguins)
+```
