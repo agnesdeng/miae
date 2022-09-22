@@ -5,14 +5,14 @@ torch_dataset <- torch::dataset(
   initialize = function(data) {
     pre.obj <- preprocess(data)
 
-    self$torch.data <- pre.obj$onehot.tensor
-    # pre.obj<-preprocess(data)
-    # torch.data<-pre.obj$onehot.tensor
+    self$torch.data <- pre.obj$data.tensor
+
   },
   .getitem = function(index) {
-    x <- self$torch.data[index, ]
+    data <- self$torch.data[index, ]
 
-    x
+    return(list("data"=data,"index"=index))
+
   },
   .length = function() {
     self$torch.data$size()[[1]]
@@ -21,3 +21,5 @@ torch_dataset <- torch::dataset(
     self$torch.data$size()[[2]]
   }
 )
+
+

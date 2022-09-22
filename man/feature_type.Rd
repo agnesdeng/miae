@@ -7,7 +7,7 @@
 feature_type(data)
 }
 \arguments{
-\item{data}{A data frame}
+\item{data}{A data frame, tibble, or data table.}
 }
 \description{
 This function is used to return the type(numeric,binary,multiclass) of each feature

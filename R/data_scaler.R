@@ -8,7 +8,9 @@ minmax <- function(x) {
 
 
 #' scale a dataset and return a scaled dataframe, the colmin and colmax of each column
-#' @param data A data frame
+#' @param data A data frame or tibble
+#' @importFrom dplyr mutate_all
+#' @importFrom stats median
 #' @export
 minmax_scaler <- function(data) {
   pre <- dplyr::mutate_all(data, ~ ifelse(is.na(.), median(., na.rm = TRUE), .))

@@ -6,8 +6,11 @@
 # build an autoencoders
 dae <- nn_module(
   "dae",
-  initialize = function(n.features, latent.dim, dropout.prob, encoder.structure, decoder.structure) {
-    self$dropout.prob <- dropout.prob
+  initialize = function(n.features, input.dropout, latent.dropout, hidden.dropout, encoder.structure,latent.dim, decoder.structure) {
+
+     self$input.dropout <- input.dropout
+     self$latent.dropout <- latent.dropout
+     self$hidden.dropout <- hidden.dropout
 
     # encoder
     encoder.list <- list()
@@ -37,19 +40,27 @@ dae <- nn_module(
         decoder.list[[2 * i - 1]] <- nn_linear(decoder.structure[i - 1], decoder.structure[i])
       }
 
-      decoder.list[[2 * i]] <- nn_relu()
+
+        decoder.list[[2 * i]] <- nn_relu()
+
+
+
     }
 
-    decoder.list[[2 * length(decoder.structure) + 1]] <- nn_linear(decoder.structure[i], n.features)
+    decoder.list[[2 * length(decoder.structure)+1]] <- nn_linear(decoder.structure[i], n.features)
 
     self$decoder <- nn_module_list(modules = decoder.list)
   },
+
   forward = function(x) {
+
+    x<-nnf_dropout(input = x, p = self$input.dropout, inplace = FALSE)
+
     for (i in 1:length(self$encoder)) {
       x <- self$encoder[[i]](x)
     }
 
-    x <- nnf_dropout(input = x, p = self$dropout.prob, inplace = FALSE)
+    x <- nnf_dropout(input = x, p = self$latent.dropout, inplace = FALSE)
 
     for (i in 1:length(self$decoder)) {
       x <- self$decoder[[i]](x)

@@ -1,8 +1,8 @@
 #' Pre-process data before imputation: scale numeric and one-hot categorical
-#' @importFrom dplyr select_if
-#' @importFrom purrr negate
-#' @importFrom torch torch_tensor torch_cat
+#' @importFrom torch torch_tensor torch_cat nnf_one_hot
+#' @export
 preprocess <- function(data) {
+
   Types <- feature_type(data)
   # Types
   original.names <- names(Types)
@@ -14,103 +14,144 @@ preprocess <- function(data) {
   ordered.types <- Types[ordered.names]
 
   # ordered data according to numeric>binary>multiclass
-  ordered.data <- data[ordered.names]
+  if(is.data.table(data)){
+    ordered.data <- data[, ordered.names, with = FALSE]
+  }else{
+    ordered.data <- data[ordered.names]
+  }
 
   na.loc <- is.na(ordered.data)
 
 
-  # scale numeric data (pre-impute with median)
-  num.obj <- minmax_scaler(data[num])
-  # cont.obj<-minmax_scaler(data %>% dplyr::select_if(is.numeric))
+  #if numeric feature exists
+  if(length(num)>=1){
 
-  num.mat <- num.obj$minmax.mat
-  num.tensor <- torch::torch_tensor(num.mat)
-  col.min <- num.obj$colmin
-  col.max <- num.obj$colmax
+    if(is.data.table(data)){
+      num.obj <- minmax_scaler(data[, num, with = FALSE])
+    }else{
+      num.obj <- minmax_scaler(data[,num])
+    }
+
+    num.mat <- num.obj$minmax.mat
+    num.tensor <- torch::torch_tensor(num.mat)
+    col.min <- num.obj$colmin
+    col.max <- num.obj$colmax
+
+    num.idx <- vector("list", length = length(num))
+    names(num.idx) <- num
+
+    if (!is.null(num)) {
+      for(i in seq_along(num)){
+        num.idx[i]<-i
+      }
+
+    }
+
+  }
 
 
-  # one-hot categorical data
-  # one-hot encoding (vs embeddings)
-  cat.mat <- data[c(bin, multi)]
-  # cat.mat<-data %>% dplyr::select_if(purrr::negate(is.numeric))
+
+
+
+
+  #if categorical data exists
+  ##one-hot categorical data
   cat.names <- c(bin, multi)
 
-  # initial impute with mode
-  cat.naSums <- colSums(is.na(cat.mat))
-  cat.naidx <- which(cat.naSums != 0)
-  cat.navars <- cat.names[cat.naidx]
+  if(length(cat.names)>=1){
 
-
-  for (var in cat.navars) {
-    na.idx <- which(is.na(cat.mat[[var]]))
-    # Na.idx[[var]] <- na.idx
-    # Impute the missing values of a vector with the mode (majority class) of observed values
-    cat.mat[[var]] <- imp.mode(vec = cat.mat[[var]], na.idx = na.idx)
-  }
-
-
-
-  N.levels <- rep(NA, times = length(cat.names))
-  names(N.levels) <- cat.names
-
-  for (var in cat.names) {
-    N.levels[var] <- nlevels(cat.mat[[var]])
-  }
-
-
-  num.idx <- NULL
-  bin.idx <- vector("list", length = length(bin))
-  names(bin.idx) <- bin
-
-  multi.idx <- vector("list", length = length(multi))
-  names(multi.idx) <- multi
-
-  if (!is.null(num)) {
-    num.idx <- 1:length(num)
-  }
-
-  if (!is.null(bin)) {
-    bin.start <- length(num.idx) + 1
-    for (var in bin) {
-      bin.idx[[var]] <- bin.start:(bin.start + 1)
-      bin.start <- bin.start + 2
+    if(is.data.table(data)){
+      cat.mat <- data[, cat.names, with = FALSE]
+    }else{
+      cat.mat <- data[, cat.names, drop = FALSE]
     }
+
+
+
+
+
+    # initial impute with mode
+      cat.naSums <- colSums(is.na(cat.mat))
+      cat.naidx <- which(cat.naSums != 0)
+      cat.navars <- cat.names[cat.naidx]
+
+      for (var in cat.navars) {
+        na.idx <- which(is.na(cat.mat[[var]]))
+        # Na.idx[[var]] <- na.idx
+        # Impute the missing values of a vector with the mode (majority class) of observed values
+        cat.mat[[var]] <- imp.mode(vec = cat.mat[[var]], na.idx = na.idx)
+      }
+
+
+      N.levels <- rep(NA, times = length(cat.names))
+      names(N.levels) <- cat.names
+
+      for (var in cat.names) {
+        N.levels[var] <- nlevels(cat.mat[[var]])
+      }
+
+
+
+
+      bin.idx <- vector("list", length = length(bin))
+      names(bin.idx) <- bin
+
+      multi.idx <- vector("list", length = length(multi))
+      names(multi.idx) <- multi
+
+
+
+      if (!is.null(bin)) {
+        bin.start <- length(num.idx) + 1
+        for (var in bin) {
+          bin.idx[[var]] <- bin.start:(bin.start + 1)
+          bin.start <- bin.start + 2
+        }
+      }
+
+
+      if (!is.null(multi)) {
+        multi.start <- bin.start
+        for (var in multi) {
+          n.levels <- N.levels[var]
+          multi.idx[[var]] <- multi.start:(multi.start + n.levels - 1)
+          multi.start <- multi.start + n.levels
+        }
+      }
+
+      # levels for each categorical variables
+      cat.levels <- vector("list", length(c(bin, multi)))
+      names(cat.levels) <- c(bin, multi)
+      for (var in cat.names) {
+        cat.levels[[var]] <- levels(data[[var]])
+      }
+
+
+
+      cat.list <- vector("list", length = length(cat.names))
+      names(cat.list) <- cat.names
+
+      for (var in cat.names) {
+        cat.list[[var]] <- torch::nnf_one_hot(torch::torch_tensor(as.integer(cat.mat[[var]])))
+      }
+
+
+      # combine numeric data with one-hot encoded categorical variables
+      cat.tensor <- torch::torch_cat(cat.list, dim = 2)
+      data.tensor <- torch::torch_cat(list(num.tensor, cat.tensor), dim = 2)
+
+  }else{
+    #only numeric
+    data.tensor <- num.tensor
   }
 
 
-  if (!is.null(multi)) {
-    multi.start <- bin.start
-    for (var in multi) {
-      n.levels <- N.levels[var]
-      multi.idx[[var]] <- multi.start:(multi.start + n.levels - 1)
-      multi.start <- multi.start + n.levels
-    }
-  }
-
-  # levels for each categorical variables
-  cat.levels <- vector("list", length(c(bin, multi)))
-  names(cat.levels) <- c(bin, multi)
-  for (var in cat.names) {
-    cat.levels[[var]] <- levels(data[[var]])
-  }
 
 
-
-  cat.list <- vector("list", length = length(cat.names))
-  names(cat.list) <- cat.names
-
-  for (var in cat.names) {
-    cat.list[[var]] <- torch::nnf_one_hot(torch::torch_tensor(as.integer(cat.mat[[var]])))
-  }
-
-
-  # combine numeric data with one-hot encoded categorical variables
-  cat.tensor <- torch::torch_cat(cat.list, dim = 2)
-  onehot.tensor <- torch::torch_cat(list(num.tensor, cat.tensor), dim = 2)
 
 
   return(list(
-    "onehot.tensor" = onehot.tensor,
+    "data.tensor" = data.tensor,
     "na.loc" = na.loc,
     "col.min" = col.min, "col.max" = col.max,
     "original.names" = original.names,
@@ -119,17 +160,17 @@ preprocess <- function(data) {
     "num" = num,
     "bin" = bin,
     "multi" = multi,
-    "cat.names" = cat.names,
     "num.idx" = num.idx,
     "bin.idx" = bin.idx,
     "multi.idx" = multi.idx,
+    "cat.names" = cat.names,
     "cat.levels" = cat.levels
   ))
 }
 
 
 #' This function is used to return the type(numeric,binary,multiclass) of each feature
-#' @param  data A data frame
+#' @param  data A data frame, tibble, or data table.
 #' @export
 feature_type <- function(data) {
   binary <- NULL

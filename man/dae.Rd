@@ -4,7 +4,15 @@
 \alias{dae}
 \title{Modules for denoising autoencoders}
 \usage{
-dae(n.features, latent.dim, dropout.prob, encoder.structure, decoder.structure)
+dae(
+  n.features,
+  input.dropout,
+  latent.dropout,
+  hidden.dropout,
+  encoder.structure,
+  latent.dim,
+  decoder.structure
+)
 }
 \description{
 Set up an denoising autoencoder imputer object with specified hyperparameters and then obtain multiple imputed datasets

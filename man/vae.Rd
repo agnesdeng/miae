@@ -4,7 +4,15 @@
 \alias{vae}
 \title{Modules for variational autoencoders}
 \usage{
-vae(n.features, latent.dim, encoder.structure, decoder.structure)
+vae(
+  n.features,
+  input.dropout,
+  latent.dropout,
+  hidden.dropout,
+  encoder.structure,
+  latent.dim,
+  decoder.structure
+)
 }
 \description{
 Set up a autoencoder imputer object with specified hyperparameters and then obtain multiple imputed datasets

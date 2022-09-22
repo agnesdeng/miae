@@ -7,7 +7,7 @@
 minmax_scaler(data)
 }
 \arguments{
-\item{data}{A data frame}
+\item{data}{A data frame or tibble}
 }
 \description{
 scale a dataset and return a scaled dataframe, the colmin and colmax of each column

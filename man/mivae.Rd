@@ -2,36 +2,67 @@
 % Please edit documentation in R/mivae.R
 \name{mivae}
 \alias{mivae}
-\title{multiple imputation through autoencoders}
+\title{multiple imputation through variational autoencoders with dropout}
 \usage{
 mivae(
   data,
   m = 5,
   epochs = 10,
-  latent.dim = 16,
-  learning.rate = 0.001,
   batch.size = 50,
+  input.dropout = 0,
+  latent.dropout = 0,
+  hidden.dropout = 0,
+  optimizer = "adam",
+  learning.rate = 0.001,
+  weight.decay = 0,
+  momentum = 0,
   encoder.structure = c(128, 64, 32),
-  decoder.structure = c(32, 64, 128)
+  latent.dim = 8,
+  decoder.structure = c(32, 64, 128),
+  verbose = TRUE,
+  print.every.n = 1,
+  directory = NULL
 )
 }
 \arguments{
-\item{data}{data with missing values}
+\item{data}{A data frame, tibble or data table with missing values.}
 
-\item{m}{the number of imputed datasets}
+\item{m}{The number of imputed datasets.}
 
-\item{epochs}{the number of training epochs}
+\item{epochs}{The number of training epochs (iterations).}
 
-\item{latent.dim}{the size of latent layer}
+\item{batch.size}{The size of samples in each batch.}
 
-\item{learning.rate}{learning rate}
+\item{input.dropout}{The dropout probability of the input layer.}
 
-\item{batch.size}{the size of each batch}
+\item{latent.dropout}{The dropout probability of the latent layer.}
 
-\item{encoder.structure}{the size of each layer in the encoder}
+\item{hidden.dropout}{The dropout probability of the hidden layers.}
 
-\item{decoder.structure}{the size of each layer in the decoder}
+\item{optimizer}{The name of the optimizer. Options are : "adam" (default), and "sgd".}
+
+\item{learning.rate}{The learning rate. The default value is 0.001.}
+
+\item{weight.decay}{Weight decay (L2 penalty). The default value is 0.}
+
+\item{momentum}{Parameter for "sgd" optimizer. It is used for accelerating SGD in the relevant direction and dampens oscillations.}
+
+\item{encoder.structure}{A vector indicating the structure of encoder. Default: c(128,64,32)}
+
+\item{latent.dim}{The size of latent layer. The default value is 8.}
+
+\item{decoder.structure}{A vector indicating the structure of decoder. Default: c(32,64,128)}
+
+\item{verbose}{Whether or not to print training loss information. Default: TRUE.}
+
+\item{print.every.n}{If verbose is set to TRUE, print out training loss for every n epochs.}
+
+\item{directory}{The directory where the final imputation model will be saved.}
 }
 \description{
-multiple imputation through autoencoders
+multiple imputation through variational autoencoders with dropout
+}
+\examples{
+withNA.df <- createNA(data = iris,p = 0.2)
+imputed.data <- mivae(data = withNA.df, m = 5, epochs = 5, directory = tempdir())
 }

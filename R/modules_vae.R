@@ -5,8 +5,11 @@
 #' @export
 vae <- nn_module(
   "vae",
-  initialize = function(n.features, latent.dim, encoder.structure, decoder.structure) {
+  initialize = function(n.features, input.dropout, latent.dropout, hidden.dropout, encoder.structure,latent.dim, decoder.structure) {
 
+    self$input.dropout <- input.dropout
+    self$latent.dropout <- latent.dropout
+    self$hidden.dropout <- hidden.dropout
 
     # encoder
     encoder.list <- list()
@@ -49,7 +52,9 @@ vae <- nn_module(
     self$decoder <- nn_module_list(modules = decoder.list)
   },
   forward = function(x) {
-    y <- x
+    #y<-x
+    y<-nnf_dropout(input = x, p = self$input.dropout, inplace = FALSE)
+
     for (i in 1:length(self$encoder)) {
       y <- self$encoder[[i]](y)
     }
@@ -57,6 +62,8 @@ vae <- nn_module(
     mu <- self$mean(y)
     log.var <- self$log_var(y)
     z <- mu + torch_exp(log.var$mul(0.5)) * torch_randn(c(dim(x)[1], self$latent.dim))
+
+    z <- nnf_dropout(input = z, p = self$latent.dropout, inplace = FALSE)
 
     for (i in 1:length(self$decoder)) {
       z <- self$decoder[[i]](z)

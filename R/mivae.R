@@ -1,17 +1,37 @@
-#' multiple imputation through autoencoders
-#' @param data data with missing values
-#' @param m the number of imputed datasets
-#' @param epochs the number of training epochs
-#' @param latent.dim the size of latent layer
-#' @param learning.rate learning rate
-#' @param batch.size the size of each batch
-#' @param encoder.structure the size of each layer in the encoder
-#' @param decoder.structure the size of each layer in the decoder
-#' @importFrom torch dataloader nn_mse_loss nn_bce_with_logits_loss nn_cross_entropy_loss optim_adam torch_save torch_load torch_argmax dataloader_make_iter dataloader_next
+#' multiple imputation through variational autoencoders with dropout
+#' @param data A data frame, tibble or data table with missing values.
+#' @param m The number of imputed datasets.
+#' @param epochs The number of training epochs (iterations).
+#' @param batch.size The size of samples in each batch.
+#' @param input.dropout The dropout probability of the input layer.
+#' @param latent.dropout The dropout probability of the latent layer.
+#' @param hidden.dropout The dropout probability of the hidden layers.
+#' @param optimizer The name of the optimizer. Options are : "adam" (default), and "sgd".
+#' @param learning.rate The learning rate. The default value is 0.001.
+#' @param weight.decay Weight decay (L2 penalty). The default value is 0.
+#' @param momentum Parameter for "sgd" optimizer. It is used for accelerating SGD in the relevant direction and dampens oscillations.
+#' @param encoder.structure A vector indicating the structure of encoder. Default: c(128,64,32)
+#' @param latent.dim The size of latent layer. The default value is 8.
+#' @param decoder.structure A vector indicating the structure of decoder. Default: c(32,64,128)
+#' @param verbose Whether or not to print training loss information. Default: TRUE.
+#' @param print.every.n If verbose is set to TRUE, print out training loss for every n epochs.
+#' @param directory The directory where the final imputation model will be saved.
+#' @importFrom torch dataloader torch_mean nn_mse_loss nn_bce_with_logits_loss nn_cross_entropy_loss optim_adam optim_sgd torch_save torch_load torch_argmax dataloader_make_iter dataloader_next
 #' @export
-mivae <- function(data, m = 5, epochs = 10, latent.dim = 16, learning.rate = 0.001, batch.size = 50, encoder.structure = c(128, 64, 32), decoder.structure = c(32, 64, 128)) {
-  pre.obj <- preprocess(data)
+#' @examples
+#' withNA.df <- createNA(data = iris,p = 0.2)
+#' imputed.data <- mivae(data = withNA.df, m = 5, epochs = 5, directory = tempdir())
+mivae <- function(data, m = 5, epochs = 10, batch.size = 50,
+                  input.dropout = 0, latent.dropout = 0, hidden.dropout = 0,
+                  optimizer = "adam", learning.rate = 0.001, weight.decay = 0, momentum = 0,
+                  encoder.structure = c(128, 64, 32), latent.dim = 8, decoder.structure = c(32, 64, 128),
+                  verbose = TRUE, print.every.n = 1, directory = NULL) {
 
+  if(is.null(directory)){
+    stop("Please specify a directory to save the imputation model.")
+  }
+
+  pre.obj <- preprocess(data)
 
   torch.data <- torch_dataset(data)
 
@@ -22,40 +42,56 @@ mivae <- function(data, m = 5, epochs = 10, latent.dim = 16, learning.rate = 0.0
   dl <- torch::dataloader(dataset = torch.data, batch_size = batch.size, shuffle = TRUE)
 
 
-  model <- vae(n.features = n.features, latent.dim = latent.dim, encoder.structure = encoder.structure, decoder.structure = encoder.structure)
+  model <-  vae(n.features = n.features, latent.dim = latent.dim, input.dropout = input.dropout, latent.dropout = latent.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, decoder.structure = encoder.structure)
 
 
-  # define the loss function for different variable
-  num_loss <- torch::nn_mse_loss(reduction = "sum")
+  # define the loss function for different variables
+  num_loss <- torch::nn_mse_loss(reduction = "mean")
   bin_loss <- torch::nn_bce_with_logits_loss()
   multi_loss <- torch::nn_cross_entropy_loss()
 
 
-  ## choose optimizer & learning rate
-  optimizer <- torch::optim_adam(model$parameters, lr = learning.rate)
+  # choose optimizer & learning rate
+  if(optimizer=="adam"){
+    optimizer <- torch::optim_adam(model$parameters, lr = learning.rate, weight_decay = weight.decay)
+  }else if(optimizer=="sgd"){
+    optimizer <- torch::optim_sgd(model$parameters, lr = learning.rate, momentum = momentum, weight_decay = weight.decay)
+  }
 
 
 
   # epochs: number of iterations
 
   for (epoch in seq_len(epochs)) {
+
+    model$train()
+
     epoch.loss <- 0
 
     coro::loop(for (b in dl) { # loop over all minibatches for one epoch
 
-      Out <- model(b)
+      Out <- model(b$data)
 
       # numeric
-      num.cost <- num_loss(input = Out$reconstrx[, pre.obj$num.idx], target = b[, pre.obj$num.idx])
-      total.num.cost <- num.cost / batch.size
+      num.cost <- vector("list", length = length(pre.obj$num))
+      names(num.cost) <- pre.obj$num
+
+      for (var in pre.obj$num){
+        obs.idx<-which(pre.obj$na.loc[as.array(b$index),var]!=TRUE)
+        num.cost[[var]] <- num_loss(input = Out$reconstrx[obs.idx, pre.obj$num.idx[[var]]], target = b$data[obs.idx, pre.obj$num.idx[[var]]])
+      }
+
+      total.num.cost <- do.call(sum, num.cost)
 
       # binary
       bin.cost <- vector("list", length = length(pre.obj$bin))
       names(bin.cost) <- pre.obj$bin
 
       for (var in pre.obj$bin) {
-        bin.cost[[var]] <- bin_loss(input = Out$reconstrx[, pre.obj$bin.idx[[var]]], target = b[, pre.obj$bin.idx[[var]]])
+        obs.idx<-which(pre.obj$na.loc[as.array(b$index),var]!=TRUE)
+        bin.cost[[var]] <- bin_loss(input = Out$reconstrx[obs.idx, pre.obj$bin.idx[[var]]], target = b$data[obs.idx, pre.obj$bin.idx[[var]]])
       }
+
 
       total.bin.cost <- do.call(sum, bin.cost)
 
@@ -64,8 +100,10 @@ mivae <- function(data, m = 5, epochs = 10, latent.dim = 16, learning.rate = 0.0
       names(multi.cost) <- pre.obj$multi
 
       for (var in pre.obj$multi) {
-        multi.cost[[var]] <- multi_loss(input = Out$reconstrx[, pre.obj$multi.idx[[var]]], target = torch::torch_argmax(b[, pre.obj$multi.idx[[var]]], dim = 2))
+        obs.idx<-which(pre.obj$na.loc[as.array(b$index),var]!=TRUE)
+        multi.cost[[var]] <- multi_loss(input = Out$reconstrx[obs.idx, pre.obj$multi.idx[[var]]], target = torch::torch_argmax(b$data[obs.idx, pre.obj$multi.idx[[var]]], dim = 2))
       }
+
       total.multi.cost <- do.call(sum, multi.cost)
 
       # Total cost (reconstruction loss)
@@ -93,24 +131,24 @@ mivae <- function(data, m = 5, epochs = 10, latent.dim = 16, learning.rate = 0.0
       epoch.loss <- epoch.loss + batch.loss
 
       if (epoch == epochs) {
-        # torch_save(model,path="C:/Users/agnes/Desktop/torch")
-        torch::torch_save(model, paste0("model_", epoch, ".pt"))
+        torch::torch_save(model, path = file.path(directory,paste0("model_", epoch, ".pt")))
       }
     })
 
-    # cat(sprintf("Loss at epoch %d: %1f\n", epoch, 128*l/60000))
-    cat(sprintf("Loss at epoch %d: %1f\n", epoch, epoch.loss / length(dl)))
+    if(verbose & (epoch ==1 | epoch %% print.every.n == 0)){
+      cat(sprintf("Loss at epoch %d: %1f\n", epoch, epoch.loss / length(dl)))
+    }
   }
 
 
   last.model <- paste0(paste0("model_", epochs), ".pt")
-  model <- torch::torch_load(last.model)
+  model <- torch::torch_load(path = file.path(directory,last.model))
 
   model$eval()
 
   # The whole dataset
-  eval_dl <- torch::dataloader(dataset = torch.data, batch_size = n.samples, shuffle = TRUE)
-  eval_dl
+  eval_dl <- torch::dataloader(dataset = torch.data, batch_size = n.samples, shuffle = FALSE)
+
 
   wholebatch <- eval_dl %>%
     torch::dataloader_make_iter() %>%
@@ -121,18 +159,13 @@ mivae <- function(data, m = 5, epochs = 10, latent.dim = 16, learning.rate = 0.0
   na.loc <- pre.obj$na.loc
 
   for (i in seq_len(m)) {
-    output.list <- model(wholebatch)
+    output.list <- model(wholebatch$data)
     imp.data <- postprocess(output.data = output.list$reconstrx, pre.obj = pre.obj)
     na.vars <- pre.obj$ordered.names[colSums(na.loc) != 0]
 
     for (var in na.vars) {
 
-      if(is.data.table(data)){
-        #data.table
-        stop("Compatibility with data.table is coming soon.")
-      }else{
         data[[var]][na.loc[, var]] <- imp.data[[var]][na.loc[, var]]
-      }
 
     }
 
