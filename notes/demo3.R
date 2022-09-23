@@ -1,4 +1,26 @@
 # library(dplyr)
+
+
+
+data = train.data
+m = 5
+epochs = 10
+batch.size = 50
+input.dropout = 0.9
+latent.dropout = 0.5
+hidden.dropout = 1
+optimizer = "adam"
+learning.rate = 0.001
+weight.decay = 0
+momentum = 0
+encoder.structure = c(128, 64, 32)
+latent.dim = 8
+decoder.structure = c(32, 64, 128)
+verbose = TRUE
+print.every.n = 1
+path = "C:/Users/agnes/Desktop/torch/midaemodel.pt"
+
+
 library(palmerpenguins)
 
 
@@ -17,15 +39,13 @@ test.data <- penguins[-idx, ]
 
 
 
-imputed.data <- midae(data = train.data, m = 5, epochs = 5, path = "C:/Users/agnes/Desktop/torch/midaemodel.pt")
-
 
 imputed.newdata <- impute_new(path = "C:/Users/agnes/Desktop/torch/midaemodel.pt", newdata = test.data, m = 5)
 imputed.newdata
 
 
 
-imputed.data <- mivae(data = train.data, m = 5, epochs = 5, path = "C:/Users/agnes/Desktop/torch/mivaemodel.pt")
+imputed.data <- mivae(data = train.data, m = 5, epochs = 5, batch.size = 10, path = "C:/Users/agnes/Desktop/torch/mivaemodel.pt")
 
 
 imputed.newdata <- impute_new(path = "C:/Users/agnes/Desktop/torch/mivaemodel.pt", newdata = test.data, m = 5)

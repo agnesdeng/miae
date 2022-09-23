@@ -86,11 +86,8 @@ idx <- sample(1:n, size = round(0.7 * n), replace = FALSE)
 train.data <- penguins[idx, ]
 test.data <- penguins[-idx, ]
 
-
-
 midae.data <- midae(data = train.data, m = 5, epochs = 5, path = "C:/Users/agnes/Desktop/torch/midaemodel.pt")
 midae.newdata <- impute_new(path = "C:/Users/agnes/Desktop/torch/midaemodel.pt", newdata = test.data, m = 5)
-
 
 
 mivae.data <- mivae(data = train.data, m = 5, epochs = 5, path = "C:/Users/agnes/Desktop/torch/mivaemodel.pt")
