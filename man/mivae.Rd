@@ -21,7 +21,7 @@ mivae(
   decoder.structure = c(32, 64, 128),
   verbose = TRUE,
   print.every.n = 1,
-  directory = NULL
+  path = NULL
 )
 }
 \arguments{
@@ -57,12 +57,12 @@ mivae(
 
 \item{print.every.n}{If verbose is set to TRUE, print out training loss for every n epochs.}
 
-\item{directory}{The directory where the final imputation model will be saved.}
+\item{path}{The path where the final imputation model will be saved.}
 }
 \description{
 multiple imputation through variational autoencoders with dropout
 }
 \examples{
 withNA.df <- createNA(data = iris,p = 0.2)
-imputed.data <- mivae(data = withNA.df, m = 5, epochs = 5, directory = tempdir())
+imputed.data <- mivae(data = withNA.df, m = 5, epochs = 5, path = file.path(tempdir(),"mivaemodel.pt")
 }

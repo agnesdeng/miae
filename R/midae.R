@@ -15,20 +15,20 @@
 #' @param decoder.structure A vector indicating the structure of decoder. Default: c(32,64,128)
 #' @param verbose Whether or not to print training loss information. Default: TRUE.
 #' @param print.every.n If verbose is set to TRUE, print out training loss for every n epochs.
-#' @param directory The directory where the final imputation model will be saved.
+#' @param path The path where the final imputation model will be saved.
 #' @importFrom torch dataloader nn_mse_loss nn_bce_with_logits_loss nn_cross_entropy_loss optim_adam optim_sgd torch_save torch_load torch_argmax dataloader_make_iter dataloader_next
 #' @export
 #' @examples
 #' withNA.df <- createNA(data = iris,p = 0.2)
-#' imputed.data <- midae(data = withNA.df, m = 5, epochs = 5, directory = tempdir())
+#' imputed.data <- midae(data = withNA.df, m = 5, epochs = 5, path = file.path(tempdir(),"midaemodel.pt")
 midae <- function(data, m = 5, epochs = 10, batch.size = 50,
                   input.dropout = 0.9, latent.dropout = 0.5, hidden.dropout = 1,
                   optimizer = "adam", learning.rate = 0.001, weight.decay = 0, momentum = 0,
                   encoder.structure = c(128, 64, 32), latent.dim = 8, decoder.structure = c(32, 64, 128),
-                  verbose = TRUE, print.every.n = 1, directory = NULL) {
+                  verbose = TRUE, print.every.n = 1, path = NULL) {
 
-  if(is.null(directory)){
-    stop("Please specify a directory to save the imputation model.")
+  if(is.null(path)){
+    stop("Please specify a path to save the imputation model.")
   }
 
   pre.obj <- preprocess(data)
@@ -121,7 +121,7 @@ midae <- function(data, m = 5, epochs = 10, batch.size = 50,
       epoch.loss <- epoch.loss + batch.loss
 
       if (epoch == epochs) {
-        torch::torch_save(model, path = file.path(directory,paste0("model_", epoch, ".pt")))
+        torch::torch_save(model, path = path)
       }
     })
 
@@ -132,8 +132,7 @@ midae <- function(data, m = 5, epochs = 10, batch.size = 50,
   }
 
 
-  last.model <- paste0(paste0("model_", epochs), ".pt")
-  model <- torch::torch_load(path = file.path(directory,last.model))
+  model <- torch::torch_load(path = path)
 
   model$eval()
 

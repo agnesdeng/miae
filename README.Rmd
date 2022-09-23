@@ -49,7 +49,7 @@ midae.imputed<-midae(data=penguins,m = 5, epochs = 10, batch.size = 50,
                   input.dropout = 0.9, latent.dropout = 0.5, hidden.dropout = 1,
                   optimizer = "adam", learning.rate = 0.001, weight.decay = 0, momentum = 0,
                   encoder.structure = c(128, 64, 32), latent.dim = 8, decoder.structure = c(32, 64, 128),
-                  verbose = TRUE, print.every.n = 1, directory = tempdir())
+                  verbose = TRUE, print.every.n = 1, path = file.path(tempdir(),"midaemodel.pt"))
 
 #obtain the fifth imputed dataset
 midae.imputed[[5]]
@@ -69,7 +69,7 @@ library(palmerpenguins)
 colSums(is.na(penguins))
 
 
-mivae.imputed<-mivae(data=penguins,m=5,epochs=10,directory = tempdir())
+mivae.imputed<-mivae(data=penguins,m=5,epochs=10,path = file.path(tempdir(),"mivaemodel.pt"))
 
 #obtain the fifth imputed dataset
 mivae.imputed[[5]]
@@ -77,4 +77,24 @@ mivae.imputed[[5]]
 
 #show the imputed values for missing entries in the variable "bill_length_mm"
 show_var(imputation.list=mivae.imputed,var.name="bill_length_mm",original.data = penguins)
+```
+## 4. Impute new data using a saved imputation model
+
+```{r}
+n <- nrow(penguins)
+idx <- sample(1:n, size = round(0.7 * n), replace = FALSE)
+train.data <- penguins[idx, ]
+test.data <- penguins[-idx, ]
+
+
+
+midae.data <- midae(data = train.data, m = 5, epochs = 5, path = "C:/Users/agnes/Desktop/torch/midaemodel.pt")
+midae.newdata <- impute_new(path = "C:/Users/agnes/Desktop/torch/midaemodel.pt", newdata = test.data, m = 5)
+
+
+
+mivae.data <- mivae(data = train.data, m = 5, epochs = 5, path = "C:/Users/agnes/Desktop/torch/mivaemodel.pt")
+mivae.newdata <- impute_new(path = "C:/Users/agnes/Desktop/torch/mivaemodel.pt", newdata = test.data, m = 5)
+
+
 ```

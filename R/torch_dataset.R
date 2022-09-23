@@ -1,5 +1,6 @@
 #' prepare the dataset
 #' @importFrom torch dataset torch_tensor torch_cat nnf_one_hot
+#' @export
 torch_dataset <- torch::dataset(
   name = "torch_dataset",
   initialize = function(data) {
