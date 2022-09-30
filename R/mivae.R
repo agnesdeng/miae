@@ -15,6 +15,7 @@
 #' @param decoder.structure A vector indicating the structure of decoder. Default: c(32,64,128)
 #' @param verbose Whether or not to print training loss information. Default: TRUE.
 #' @param print.every.n If verbose is set to TRUE, print out training loss for every n epochs.
+#' @param save.model Whether or not to save the imputation model. Default: FALSE.
 #' @param path The path where the final imputation model will be saved.
 #' @importFrom torch dataloader torch_mean nn_mse_loss nn_bce_with_logits_loss nn_cross_entropy_loss optim_adam optim_sgd torch_save torch_load torch_argmax dataloader_make_iter dataloader_next
 #' @export
@@ -25,10 +26,10 @@ mivae <- function(data, m = 5, epochs = 10, batch.size = 50,
                   input.dropout = 0, latent.dropout = 0, hidden.dropout = 0,
                   optimizer = "adam", learning.rate = 0.001, weight.decay = 0, momentum = 0,
                   encoder.structure = c(128, 64, 32), latent.dim = 8, decoder.structure = c(32, 64, 128),
-                  verbose = TRUE, print.every.n = 1, path = NULL) {
+                  verbose = TRUE, print.every.n = 1, save.model = FALSE, path = NULL) {
 
 
-  if(is.null(path)){
+  if(save.model & is.null(path)){
     stop("Please specify a path to save the imputation model.")
   }
 
@@ -142,7 +143,7 @@ mivae <- function(data, m = 5, epochs = 10, batch.size = 50,
       batch.loss <- total.cost$item()
       train.loss <- train.loss + batch.loss
 
-      if (epoch == epochs) {
+      if (save.model & epoch == epochs) {
         torch::torch_save(model, path = path)
       }
     })
@@ -221,7 +222,7 @@ mivae <- function(data, m = 5, epochs = 10, batch.size = 50,
   }
 
 
-  model <- torch::torch_load(path = path)
+  #model <- torch::torch_load(path = path)
 
   model$eval()
 

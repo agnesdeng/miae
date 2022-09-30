@@ -8,7 +8,9 @@ postprocess <- function(output.data, pre.obj) {
   if(length(pre.obj$cat.names)>=1){
     imp.data <- rev_onehot(onehot.data = output.data, pre.obj = pre.obj)
   }else{
-    imp.data <- output.data
+    #imp.data <- output.data
+    imp.data <- as_array(output.data[, 1:length(pre.obj$num)])
+    colnames(imp.data)<-pre.obj$num
   }
 
 

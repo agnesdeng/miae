@@ -61,8 +61,28 @@ loss.sum(input,target)
 
 ((2-3)^2+0+(4-5)^2+(8-6)^2)/4
 
-
-loss <- nn_mse_loss()
 input <- torch_randn(3, 5, requires_grad = TRUE)
 target <- torch_randn(3, 5)
 output <- loss(input, target)
+
+library(torch)
+m1 <- nn_dropout(p = 0.2)
+input <- torch_randn(10, 2)
+input0<-input
+output <- m1(input)
+output1<-m1(input)
+output2<-m1(input)
+
+loss <- nn_mse_loss()
+torch_equal(output1,output2)
+
+
+m2 <- nn_dropout(p = 0.2,inplace = TRUE)
+
+output2 <- m2(input)
+output2
+output3<-m2(input)
+output3
+torch_equal(output2,output3)
+#TRUE
+#after running output3, output2 will change to output3

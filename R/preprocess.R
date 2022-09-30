@@ -143,6 +143,9 @@ preprocess <- function(data) {
   }else{
     #only numeric
     data.tensor <- num.tensor
+    bin.idx <- NULL
+    multi.idx <-NULL
+    cat.levels <-NULL
   }
 
 

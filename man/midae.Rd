@@ -21,6 +21,7 @@ midae(
   decoder.structure = c(32, 64, 128),
   verbose = TRUE,
   print.every.n = 1,
+  save.model = FALSE,
   path = NULL
 )
 }
@@ -56,6 +57,8 @@ midae(
 \item{verbose}{Whether or not to print training loss information. Default: TRUE.}
 
 \item{print.every.n}{If verbose is set to TRUE, print out training loss for every n epochs.}
+
+\item{save.model}{Whether or not to save the imputation model. Default: FALSE.}
 
 \item{path}{The path where the final imputation model will be saved.}
 }

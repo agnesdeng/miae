@@ -56,6 +56,9 @@ vae <- nn_module(
     y<-nnf_dropout(input = x, p = self$input.dropout, inplace = FALSE)
 
     for (i in 1:length(self$encoder)) {
+      if(i %% 2 ==1){
+        y <-nnf_dropout(input = y, p = self$hidden.dropout,inplace= FALSE)
+      }
       y <- self$encoder[[i]](y)
     }
 
@@ -66,6 +69,10 @@ vae <- nn_module(
     z <- nnf_dropout(input = z, p = self$latent.dropout, inplace = FALSE)
 
     for (i in 1:length(self$decoder)) {
+
+      if(i %% 2 ==1){
+        z <-nnf_dropout(input = z, p = self$hidden.dropout,inplace= FALSE)
+      }
       z <- self$decoder[[i]](z)
     }
     list("reconstrx" = z, "mu" = mu, "log.var" = log.var)

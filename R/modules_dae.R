@@ -57,12 +57,20 @@ dae <- nn_module(
     x<-nnf_dropout(input = x, p = self$input.dropout, inplace = FALSE)
 
     for (i in 1:length(self$encoder)) {
+
+      if(i %% 2 ==1){
+        x <-nnf_dropout(input = x, p = self$hidden.dropout,inplace= FALSE)
+      }
       x <- self$encoder[[i]](x)
+
     }
 
     x <- nnf_dropout(input = x, p = self$latent.dropout, inplace = FALSE)
 
     for (i in 1:length(self$decoder)) {
+      if(i %% 2 ==1){
+        x <-nnf_dropout(input = x, p = self$hidden.dropout,inplace= FALSE)
+      }
       x <- self$decoder[[i]](x)
     }
 
