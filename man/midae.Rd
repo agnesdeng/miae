@@ -2,23 +2,26 @@
 % Please edit documentation in R/midae.R
 \name{midae}
 \alias{midae}
-\title{multiple imputation through denoising autoencoders with dropout}
+\title{multiple imputation through denoising autoencoders with dropout (show train and valid loss)}
 \usage{
 midae(
   data,
   m = 5,
-  epochs = 10,
-  batch.size = 50,
-  input.dropout = 0.9,
-  latent.dropout = 0.5,
-  hidden.dropout = 1,
-  optimizer = "adam",
-  learning.rate = 0.001,
-  weight.decay = 0,
+  epochs = 5,
+  batch.size = 16,
+  split.ratio = 0.7,
+  shuffle = TRUE,
+  input.dropout = 0.2,
+  hidden.dropout = 0.5,
+  optimizer = "adamW",
+  learning.rate = 1e-04,
+  weight.decay = 0.002,
   momentum = 0,
   encoder.structure = c(128, 64, 32),
-  latent.dim = 8,
   decoder.structure = c(32, 64, 128),
+  act = "elu",
+  init.weight = "xavier.normal",
+  scaler = "none",
   verbose = TRUE,
   print.every.n = 1,
   save.model = FALSE,
@@ -34,13 +37,15 @@ midae(
 
 \item{batch.size}{The size of samples in each batch.}
 
-\item{input.dropout}{The dropout probability of the input layer.}
+\item{split.ratio}{The ratio of training data. Default: 0.7.}
 
-\item{latent.dropout}{The dropout probability of the latent layer.}
+\item{shuffle}{Whether or not to shuffle training data. Default: TRUE}
+
+\item{input.dropout}{The dropout probability of the input layer.}
 
 \item{hidden.dropout}{The dropout probability of the hidden layers.}
 
-\item{optimizer}{The name of the optimizer. Options are : "adam" (default), and "sgd".}
+\item{optimizer}{The name of the optimizer. Options are : "adamW" (default), "adam" and "sgd".}
 
 \item{learning.rate}{The learning rate. The default value is 0.001.}
 
@@ -50,9 +55,13 @@ midae(
 
 \item{encoder.structure}{A vector indicating the structure of encoder. Default: c(128,64,32)}
 
-\item{latent.dim}{The size of latent layer. The default value is 8.}
-
 \item{decoder.structure}{A vector indicating the structure of decoder. Default: c(32,64,128)}
+
+\item{act}{The name of activation function. Can be: "relu", "elu", "leaky.relu", "tanh", "sigmoid" and "identity".}
+
+\item{init.weight}{Techniques for weights initialization. Can be "xavier.uniform" or "kaiming.uniform".}
+
+\item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" or "none".}
 
 \item{verbose}{Whether or not to print training loss information. Default: TRUE.}
 
@@ -63,7 +72,7 @@ midae(
 \item{path}{The path where the final imputation model will be saved.}
 }
 \description{
-multiple imputation through denoising autoencoders with dropout
+multiple imputation through denoising autoencoders with dropout (show train and valid loss)
 }
 \examples{
 withNA.df <- createNA(data = iris,p = 0.2)

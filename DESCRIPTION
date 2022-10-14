@@ -7,9 +7,9 @@ Authors@R: c(
     person(given = "Thomas", family = "Lumley", email = "t.lumley@auckland.ac.nz",
            role = "ths")
   ) 
-Description: Scalable multiple Imputation using denoising and variational
-    autoencoders with dropout.It uses R package `torch` as the backend, which
-    is based on `PyTorch`. It supports different typesof variables and `GPU` 
+Description: Scalable multiple imputation using denoising and variational
+    autoencoders with dropout. It uses R package `torch` as the backend, which
+    is based on `PyTorch`. It supports different types of variables and `GPU` 
     acceleration is available. Users can also save an imputation model to
     impute new data.
 License: GPL (>= 3)
@@ -23,6 +23,7 @@ Imports:
     tibble,
     tidyr,
     torch,
+    torchopt,
     utils
 Suggests: 
     knitr,

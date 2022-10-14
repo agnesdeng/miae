@@ -4,7 +4,7 @@
 \alias{torch_dataset}
 \title{prepare the dataset}
 \usage{
-torch_dataset(data)
+torch_dataset(data, scaler)
 }
 \description{
 prepare the dataset

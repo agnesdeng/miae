@@ -4,7 +4,7 @@
 \alias{postprocess}
 \title{postprocess data}
 \usage{
-postprocess(output.data, pre.obj)
+postprocess(output.data, pre.obj, scaler)
 }
 \arguments{
 \item{output.data}{raw output data from autoencoders}

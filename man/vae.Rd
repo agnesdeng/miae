@@ -7,11 +7,11 @@
 vae(
   n.features,
   input.dropout,
-  latent.dropout,
   hidden.dropout,
   encoder.structure,
   latent.dim,
-  decoder.structure
+  decoder.structure,
+  act
 )
 }
 \description{

@@ -1,3 +1,4 @@
+
 cardinalities = c(length(levels(penguins$species)),length(levels(penguins$island)), length(levels(penguins$sex)))
 cardinalities
 

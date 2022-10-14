@@ -2,23 +2,27 @@
 % Please edit documentation in R/mivae.R
 \name{mivae}
 \alias{mivae}
-\title{multiple imputation through variational autoencoders with dropout}
+\title{multiple imputation through variational autoencoders with dropout (show train and valid loss)}
 \usage{
 mivae(
   data,
   m = 5,
-  epochs = 10,
-  batch.size = 50,
+  epochs = 5,
+  batch.size = 32,
+  split.ratio = 0.7,
+  shuffle = TRUE,
   input.dropout = 0,
-  latent.dropout = 0,
   hidden.dropout = 0,
-  optimizer = "adam",
-  learning.rate = 0.001,
+  optimizer = "adamW",
+  learning.rate = 1e-04,
   weight.decay = 0,
   momentum = 0,
   encoder.structure = c(128, 64, 32),
   latent.dim = 8,
   decoder.structure = c(32, 64, 128),
+  act = "elu",
+  init.weight = "xavier.normal",
+  scaler = "minmax",
   verbose = TRUE,
   print.every.n = 1,
   save.model = FALSE,
@@ -34,13 +38,15 @@ mivae(
 
 \item{batch.size}{The size of samples in each batch.}
 
-\item{input.dropout}{The dropout probability of the input layer.}
+\item{split.ratio}{The ratio of training data. Default: 0.7.}
 
-\item{latent.dropout}{The dropout probability of the latent layer.}
+\item{shuffle}{Whether or not to shuffle training data. Default: TRUE}
+
+\item{input.dropout}{The dropout probability of the input layer.}
 
 \item{hidden.dropout}{The dropout probability of the hidden layers.}
 
-\item{optimizer}{The name of the optimizer. Options are : "adam" (default), and "sgd".}
+\item{optimizer}{The name of the optimizer. Options are : "adamW" (default), "adam" and "sgd".}
 
 \item{learning.rate}{The learning rate. The default value is 0.001.}
 
@@ -54,6 +60,12 @@ mivae(
 
 \item{decoder.structure}{A vector indicating the structure of decoder. Default: c(32,64,128)}
 
+\item{act}{The name of activation function. Can be: "relu", "elu", "leaky.relu", "tanh", "sigmoid" and "identity".}
+
+\item{init.weight}{Techniques for weights initialization. Can be "xavier.uniform" or "kaiming.uniform".}
+
+\item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" or "none".}
+
 \item{verbose}{Whether or not to print training loss information. Default: TRUE.}
 
 \item{print.every.n}{If verbose is set to TRUE, print out training loss for every n epochs.}
@@ -63,7 +75,7 @@ mivae(
 \item{path}{The path where the final imputation model will be saved.}
 }
 \description{
-multiple imputation through variational autoencoders with dropout
+multiple imputation through variational autoencoders with dropout (show train and valid loss)
 }
 \examples{
 withNA.df <- createNA(data = iris,p = 0.2)

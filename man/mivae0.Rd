@@ -9,18 +9,22 @@ mivae0(
   m = 5,
   epochs = 10,
   batch.size = 50,
+  shuffle = TRUE,
   input.dropout = 0,
-  latent.dropout = 0,
   hidden.dropout = 0,
-  optimizer = "adam",
+  optimizer = "adamW",
   learning.rate = 0.001,
-  weight.decay = 0,
+  weight.decay = 0.002,
   momentum = 0,
   encoder.structure = c(128, 64, 32),
-  latent.dim = 8,
+  latent.dim = 4,
   decoder.structure = c(32, 64, 128),
+  act = "elu",
+  init.weight = "xavier.normal",
+  scaler = "none",
   verbose = TRUE,
   print.every.n = 1,
+  save.model = FALSE,
   path = NULL
 )
 }
@@ -33,9 +37,9 @@ mivae0(
 
 \item{batch.size}{The size of samples in each batch.}
 
-\item{input.dropout}{The dropout probability of the input layer.}
+\item{shuffle}{Whether or not to shuffle training data. Default: TRUE}
 
-\item{latent.dropout}{The dropout probability of the latent layer.}
+\item{input.dropout}{The dropout probability of the input layer.}
 
 \item{hidden.dropout}{The dropout probability of the hidden layers.}
 
@@ -53,9 +57,17 @@ mivae0(
 
 \item{decoder.structure}{A vector indicating the structure of decoder. Default: c(32,64,128)}
 
+\item{act}{The name of activation function. Can be: "relu", "elu", "leaky.relu", "tanh", "sigmoid" and "identity".}
+
+\item{init.weight}{Techniques for weights initialization. Can be "xavier.uniform" or "kaiming.uniform".}
+
+\item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" or "none".}
+
 \item{verbose}{Whether or not to print training loss information. Default: TRUE.}
 
 \item{print.every.n}{If verbose is set to TRUE, print out training loss for every n epochs.}
+
+\item{save.model}{Whether or not to save the imputation model. Default: FALSE.}
 
 \item{path}{The path where the final imputation model will be saved.}
 }

@@ -20,18 +20,18 @@ knitr::opts_chunk$set(
   warning = FALSE, message = FALSE
 )
 ```
+#Under-development
+In progress....
 
-# midae
+## midae
 ```{r}
 library(miae)
-#devtools::load_all()
 withNA.df <- createNA(data=iris,p=0.3)
 midae.data <- midae(data=withNA.df, m = 5,
-                  epochs = 5, batch.size = 16,
-                  input.dropout = 0.8, latent.dropout = 0, hidden.dropout = 0.5,
-                  optimizer = "adam", learning.rate = 0.001, weight.decay = 0, momentum = 0,
-                  encoder.structure = c(256, 256, 256), latent.dim = 4, decoder.structure = c(256, 256, 256),
+                  epochs = 5, batch.size = 32,
+                  scaler = "standard",
                   verbose = TRUE, print.every.n = 1)
+
 plot_hist(imputation.list=midae.data,var.name="Sepal.Length",original.data=withNA.df)
 plot_density(imputation.list=midae.data,var.name="Sepal.Length",original.data=withNA.df)
 
@@ -51,15 +51,15 @@ plot_density(imputation.list= mice.data,var.name="Sepal.Length",original.data=wi
 ```
 It seems like the imputation variance of midae is not quite right. Let's tune the dropouts and show their differences.
 ```{r}
-devtools::document()
-devtools::load_all()
-dropout.grid<-list(input.dropout=c(0.2,0.4,0.6,0.8),hidden.dropout=c(0.2, 0.4, 0.6, 0.8))
 
-midae.tune<-tune_dae_dropout(data=withNA.df, m=5, epochs = 5, batch.size = 100,
-                             dropout.grid = dropout.grid, latent.dropout = 0,
-                             optim = "adam", learning.rate = 0.001, weight.decay = 0, momentum = 0,
-                             encoder.structure = c(256, 256, 256), latent.dim = 4, decoder.structure = c(256, 256, 256),
+dropout.grid<-list(input.dropout=c(0.2,0.4,0.6),hidden.dropout=c(0.2, 0.5, 0.8))
+
+midae.tune <- tune_dae_dropout(data=withNA.df, 
+                               dropout.grid = dropout.grid,
+                             m=5, epochs = 5, batch.size = 32,
+                             scaler = "standard", init.weight="xavier.normal",
                              verbose = TRUE, print.every.n = 1)
+
 plot_dropout(tune.results = midae.tune,var.name="Sepal.Length")
 ```
 Seems like some imputed values are too small or too large. Let's have a closer look. When `input_dropout` = 0.6 and `hidden_dropout` = 0.6 looks better. 
@@ -75,23 +75,24 @@ plot_dropout(tune.results = midae.tune,var.name="Sepal.Width", xlim = range(iris
 plot_dropout(tune.results = midae.tune,var.name="Petal.Length", xlim = range(iris$Petal.Length) )
 plot_dropout(tune.results = midae.tune,var.name="Petal.Width", xlim = range(iris$Petal.Width) )
 ```
-Use the tuned dropout to impute.
+
 ```{r}
 midae.data1 <- midae(data=withNA.df, m = 5,
-                  epochs = 5, batch.size = 16,
-                  input.dropout = 0.6, latent.dropout = 0, hidden.dropout = 0.6,
-                  optimizer = "adam", learning.rate = 0.001, weight.decay = 0, momentum = 0,
-                  encoder.structure = c(256, 256, 256), latent.dim = 4, decoder.structure = c(256, 256, 256),
+                  epochs = 5, batch.size = 32,
+                  input.dropout = 0.2, 
+                  hidden.dropout = 0.5,
+                  scaler="standard",
                   verbose = TRUE, print.every.n = 1)
+
 plot_hist(imputation.list=midae.data1,var.name="Sepal.Length",original.data=withNA.df)
 plot_density(imputation.list=midae.data1,var.name="Sepal.Length",original.data=withNA.df)
 ```
 ```{r}
 midae.data2 <- midae(data=withNA.df, m = 5,
-                  epochs = 5, batch.size = 16,
-                  input.dropout = 0.8, latent.dropout = 0, hidden.dropout = 0.2,
-                  optimizer = "adam", learning.rate = 0.001, weight.decay = 0, momentum = 0,
-                  encoder.structure = c(256, 256, 256), latent.dim = 4, decoder.structure = c(256, 256, 256),
+                  epochs = 5, batch.size = 32, 
+                  input.dropout = 0.4, 
+                  hidden.dropout = 0.5,
+                  scaler = "standard",
                   verbose = TRUE, print.every.n = 1)
 plot_hist(imputation.list=midae.data2,var.name="Sepal.Length",original.data=withNA.df)
 plot_density(imputation.list=midae.data2,var.name="Sepal.Length",original.data=withNA.df)
@@ -107,13 +108,12 @@ plot_density(imputation.list=midae.data2,var.name="Sepal.Length",original.data=w
 
 
 # mivae
-Under the default settings of `rmidas`.
+Similary,
 ```{r}
 mivae.data <- mivae(data=withNA.df, m = 5,
-                  epochs = 5, batch.size = 16,
-                  input.dropout = 0.8, latent.dropout = 0, hidden.dropout = 0.5,
-                  optimizer = "adam", learning.rate = 0.001, weight.decay = 0, momentum = 0,
-                  encoder.structure = c(256, 256, 256), latent.dim = 4, decoder.structure = c(256, 256, 256),
+                  epochs = 5, batch.size = 32,
+                   input.dropout = 0.2, hidden.dropout = 0.5,
+                  scaler = "standard",
                   verbose = TRUE, print.every.n = 1)
 plot_hist(imputation.list=mivae.data,var.name="Sepal.Length",original.data=withNA.df)
 plot_density(imputation.list=mivae.data,var.name="Sepal.Length",original.data=withNA.df)
@@ -125,21 +125,19 @@ plot_density(imputation.list=mivae.data,var.name="Sepal.Length",original.data=wi
 ```{r}
 dropout.grid<-list(input.dropout=c(0.2,0.4,0.6,0.8),hidden.dropout=c(0.2, 0.4, 0.6, 0.8))
 
-mivae.tune<-tune_vae_dropout(data=withNA.df, m=5, epochs = 5, batch.size = 16,
-                             dropout.grid = dropout.grid, latent.dropout = 0,
-                             optim = "adam", learning.rate = 0.001, weight.decay = 0, momentum = 0,
-                             encoder.structure = c(256, 256, 256), latent.dim = 4, decoder.structure = c(256, 256, 256),
-                             verbose = TRUE, print.every.n = 1)
+mivae.tune<-tune_vae_dropout(data=withNA.df, dropout.grid = dropout.grid, 
+                             m=5, epochs = 5, batch.size = 32,
+                             scaler = "standard",
+                             verbose = FALSE, print.every.n = 1)
 plot_dropout(tune.results = mivae.tune,var.name="Sepal.Length")
 plot_dropout(tune.results = mivae.tune,var.name="Sepal.Length",xlim = range(iris$Sepal.Length))
 ```
 Use the tune dropout to impute
 ```{r}
 mivae.data1 <- mivae(data=withNA.df, m = 5,
-                  epochs = 5, batch.size = 16,
-                  input.dropout = 0.2, latent.dropout = 0, hidden.dropout = 0.8,
-                  optimizer = "adam", learning.rate = 0.001, weight.decay = 0, momentum = 0,
-                  encoder.structure = c(256, 256, 256), latent.dim = 4, decoder.structure = c(256, 256, 256),
+                  epochs = 5, batch.size = 32,
+                  input.dropout = 0.4, hidden.dropout = 0.6,
+                  scaler = "standard",
                   verbose = TRUE, print.every.n = 1)
 plot_hist(imputation.list=mivae.data1,var.name="Sepal.Length",original.data=withNA.df)
 plot_density(imputation.list=mivae.data1,var.name="Sepal.Length",original.data=withNA.df)

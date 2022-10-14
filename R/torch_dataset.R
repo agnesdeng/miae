@@ -3,8 +3,8 @@
 #' @export
 torch_dataset <- torch::dataset(
   name = "torch_dataset",
-  initialize = function(data) {
-    pre.obj <- preprocess(data)
+  initialize = function(data,scaler) {
+    pre.obj <- preprocess(data,scaler)
 
     self$torch.data <- pre.obj$data.tensor
 
@@ -29,8 +29,8 @@ torch_dataset <- torch::dataset(
 #' @export
 torch_dataset_idx <- torch::dataset(
   name = "torch_dataset",
-  initialize = function(data,idx) {
-    pre.obj <- preprocess(data[idx,])
+  initialize = function(data,idx,scaler) {
+    pre.obj <- preprocess(data[idx,],scaler)
 
     self$torch.data <- pre.obj$data.tensor
 

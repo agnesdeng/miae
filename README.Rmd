@@ -45,11 +45,17 @@ library(palmerpenguins)
 colSums(is.na(penguins))
 
 
-midae.imputed<-midae(data=penguins,m = 5, epochs = 10, batch.size = 50,
-                  input.dropout = 0.9, latent.dropout = 0.5, hidden.dropout = 1,
-                  optimizer = "adam", learning.rate = 0.001, weight.decay = 0, momentum = 0,
-                  encoder.structure = c(128, 64, 32), latent.dim = 8, decoder.structure = c(32, 64, 128),
-                  verbose = TRUE, print.every.n = 1, path = file.path(tempdir(),"midaemodel.pt"))
+midae.imputed<-midae(data=penguins,m = 5, epochs = 10, batch.size = 16,
+                  split.ratio = 0.7, shuffle = TRUE,
+                  input.dropout = 0.2, hidden.dropout = 0.5,
+                  optimizer = "adamW", learning.rate = 0.0001, 
+                  weight.decay = 0.002, momentum = 0,
+                  encoder.structure = c(128, 64, 32), 
+                  decoder.structure = c(32, 64, 128),
+                  act = "elu", init.weight="xavier.uniform", 
+                  scaler= "minmax",
+                  verbose = TRUE, print.every.n = 1, 
+                  save.model = FALSE, path = NULL)
 
 #obtain the fifth imputed dataset
 midae.imputed[[5]]
@@ -63,13 +69,20 @@ show_var(imputation.list=midae.imputed,var.name="bill_length_mm",original.data =
 ## 3. Multiple imputation with variational autoencoder
 
 ```{r}
-#load the penguins dataset
-library(palmerpenguins)
-#5 variables have missing values
-colSums(is.na(penguins))
 
+mivae.imputed<-mivae(data=penguins,m = 5, epochs = 10, batch.size = 16,
+                  split.ratio = 0.7, shuffle = TRUE,
+                  input.dropout = 0.2, hidden.dropout = 0.5,
+                  optimizer = "adamW", learning.rate = 0.0001, 
+                  weight.decay = 0.002, momentum = 0,
+                  encoder.structure = c(128, 64, 32), 
+                  latent.dim = 4,
+                  decoder.structure = c(32, 64, 128),
+                  act = "elu", init.weight="xavier.uniform", 
+                  scaler= "minmax",
+                  verbose = FALSE, print.every.n = 1, 
+                  save.model = FALSE, path = NULL)
 
-mivae.imputed<-mivae(data=penguins,m=5,epochs=10,path = file.path(tempdir(),"mivaemodel.pt"))
 
 #obtain the fifth imputed dataset
 mivae.imputed[[5]]
@@ -86,12 +99,17 @@ idx <- sample(1:n, size = round(0.7 * n), replace = FALSE)
 train.data <- penguins[idx, ]
 test.data <- penguins[-idx, ]
 
-midae.data <- midae(data = train.data, m = 5, epochs = 5, path = "C:/Users/agnes/Desktop/torch/midaemodel.pt")
-midae.newdata <- impute_new(path = "C:/Users/agnes/Desktop/torch/midaemodel.pt", newdata = test.data, m = 5)
 
 
-mivae.data <- mivae(data = train.data, m = 5, epochs = 5, path = "C:/Users/agnes/Desktop/torch/mivaemodel.pt")
-mivae.newdata <- impute_new(path = "C:/Users/agnes/Desktop/torch/mivaemodel.pt", newdata = test.data, m = 5)
+midae.imputed<-midae(data=train.data,m = 5, epochs = 10,  
+                  scaler = "minmax",
+                  save.model=TRUE,
+                  path=file.path(tempdir(),"midaemodel.pt"))
+
+
+midae.newdata <- impute_new(path = file.path(tempdir(),"midaemodel.pt"),                               
+                            newdata = test.data, scaler = "minmax",
+                            m = 5)
 
 
 ```

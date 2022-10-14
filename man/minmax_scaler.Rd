@@ -2,7 +2,7 @@
 % Please edit documentation in R/data_scaler.R
 \name{minmax_scaler}
 \alias{minmax_scaler}
-\title{scale a dataset and return a scaled dataframe, the colmin and colmax of each column}
+\title{scale a dataset using minmax and return a scaled dataframe, the colmin and colmax of each column}
 \usage{
 minmax_scaler(data)
 }
@@ -10,5 +10,5 @@ minmax_scaler(data)
 \item{data}{A data frame or tibble}
 }
 \description{
-scale a dataset and return a scaled dataframe, the colmin and colmax of each column
+scale a dataset using minmax and return a scaled dataframe, the colmin and colmax of each column
 }

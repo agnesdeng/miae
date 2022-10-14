@@ -59,6 +59,28 @@ lm(Y~X1+X2,data=mar1.df)
 withNA.df<-make.missing(data=mar1.df)
 withNA.df
 
+
+#midae.data<-midae(data=withNA.df,m=5,epochs = 5,batch.size = 16,input.dropout=0.8,hidden.dropout = 0.5,encoder.structure = c(256,256,256),decoder.structure = c(256,256,256))
+midae.data1a<-midae(data=withNA.df,m=5,epochs = 5,batch.size = 25,input.dropout=0.8,hidden.dropout = 0.5,encoder.structure = c(256,256,256),decoder.structure = c(256,256,256))
+midae.data2a<-midae(data=withNA.df,m=5,epochs = 5,batch.size = 50,input.dropout=0.8,hidden.dropout = 0.5,encoder.structure = c(256,256,256),decoder.structure = c(256,256,256))
+midae.data3a<-midae(data=withNA.df,m=5,epochs = 5,batch.size = 100,input.dropout=0.8,hidden.dropout = 0.5,encoder.structure = c(256,256,256),decoder.structure = c(256,256,256))
+midae.data4a<-midae(data=withNA.df,m=5,epochs = 5,batch.size = 200,input.dropout=0.8,hidden.dropout = 0.5,encoder.structure = c(256,256,256),decoder.structure = c(256,256,256))
+midae.data5a<-midae(data=withNA.df,m=5,epochs = 5,batch.size = 500,input.dropout=0.8,hidden.dropout = 0.5,encoder.structure = c(256,256,256),decoder.structure = c(256,256,256))
+
+
+results<-list(midae.data,midae.data1a,midae.data2a,midae.data3a,midae.data4a,midae.data5a)
+bias.sum(results = results)
+
+p0<-plot_density(imputation.list = midae.data,var.name = "X1",original.data=withNA.df,true.data=mar1.df, xlim=c(-4,4),main="batch.size=16")
+p1<-plot_density(imputation.list = midae.data1a,var.name = "X1",original.data=withNA.df,true.data=mar1.df, xlim=c(-4,4), main="batch.size=25")
+p2<-plot_density(imputation.list = midae.data2a,var.name = "X1",original.data=withNA.df,true.data=mar1.df, xlim=c(-4,4), main="batch.size=50")
+p3<-plot_density(imputation.list = midae.data3a,var.name = "X1",original.data=withNA.df,true.data=mar1.df, xlim=c(-4,4), main="batch.size=100")
+p4<-plot_density(imputation.list = midae.data4a,var.name = "X1",original.data=withNA.df,true.data=mar1.df, xlim=c(-4,4), main="batch.size=200")
+p5<-plot_density(imputation.list = midae.data5a,var.name = "X1",original.data=withNA.df,true.data=mar1.df,xlim=c(-4,4),main="batch.size=500")
+
+grid.arrange(p0,p1,p2,p3,p4,p5, nrow = 2)
+
+
 library(devtools)
 devtools::load_all()
 

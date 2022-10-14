@@ -4,7 +4,7 @@
 \alias{preprocess}
 \title{Pre-process data before imputation: scale numeric and one-hot categorical}
 \usage{
-preprocess(data)
+preprocess(data, scaler)
 }
 \description{
 Pre-process data before imputation: scale numeric and one-hot categorical

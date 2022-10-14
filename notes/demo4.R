@@ -2,6 +2,14 @@ library(devtools)
 devtools::document()
 devtools::load_all()
 
+if(init.weight=="xavier.normal"){
+  model$apply(init_xavier_normal())
+}else if(init.weight=="xavier.uniform"){
+  model$apply(init_xavier_uniform)
+}else if(init.weight=="xavier.midas"){
+  model$apply(init_xavier_midas)
+}
+
 
 
 withNA.df <- createNA(data = iris, p = 0.2)

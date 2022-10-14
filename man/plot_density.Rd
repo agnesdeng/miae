@@ -10,7 +10,8 @@ plot_density(
   original.data,
   true.data = NULL,
   color.pal = NULL,
-  xlim = NULL
+  xlim = NULL,
+  main = NULL
 )
 }
 \arguments{

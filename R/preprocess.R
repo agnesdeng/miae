@@ -1,7 +1,7 @@
 #' Pre-process data before imputation: scale numeric and one-hot categorical
 #' @importFrom torch torch_tensor torch_cat nnf_one_hot
 #' @export
-preprocess <- function(data) {
+preprocess <- function(data, scaler) {
 
   Types <- feature_type(data)
   # Types
@@ -14,7 +14,7 @@ preprocess <- function(data) {
   ordered.types <- Types[ordered.names]
 
   # ordered data according to numeric>binary>multiclass
-  if(is.data.table(data)){
+  if(data.table::is.data.table(data)){
     ordered.data <- data[, ordered.names, with = FALSE]
   }else{
     ordered.data <- data[ordered.names]
@@ -26,16 +26,52 @@ preprocess <- function(data) {
   #if numeric feature exists
   if(length(num)>=1){
 
-    if(is.data.table(data)){
-      num.obj <- minmax_scaler(data[, num, with = FALSE])
-    }else{
-      num.obj <- minmax_scaler(data[,num])
-    }
+    if(scaler!="none"){
 
-    num.mat <- num.obj$minmax.mat
-    num.tensor <- torch::torch_tensor(num.mat)
-    col.min <- num.obj$colmin
-    col.max <- num.obj$colmax
+      if(scaler=="minmax"){
+
+        if(is.data.table(data)){
+          num.obj <- minmax_scaler(data[, num, with = FALSE])
+        }else{
+          num.obj <- minmax_scaler(data[, num])
+        }
+
+        num.mat <- num.obj$minmax.mat
+        num.tensor <- torch::torch_tensor(num.mat)
+        colmin <- num.obj$colmin
+        colmax <- num.obj$colmax
+
+
+
+      }else if(scaler=="standard"){
+
+        if(is.data.table(data)){
+          num.obj <- standard_scaler(data[, num, with = FALSE])
+        }else{
+          num.obj <- standard_scaler(data[, num])
+        }
+
+        num.mat <- num.obj$standard.mat
+        num.tensor <- torch::torch_tensor(num.mat)
+        colmean <- num.obj$colmean
+        colsd <- num.obj$colsd
+
+
+      }
+
+
+
+
+    }else{
+      #don't scale numeric data
+
+      num.tibble<- dplyr::mutate_all(data[,num], ~ ifelse(is.na(.), median(., na.rm = TRUE), .))
+      num.mat<-as.matrix(num.tibble)
+
+      num.tensor <- torch::torch_tensor(num.mat)
+
+
+    }
 
     num.idx <- vector("list", length = length(num))
     names(num.idx) <- num
@@ -46,6 +82,9 @@ preprocess <- function(data) {
       }
 
     }
+
+
+
 
   }
 
@@ -60,7 +99,7 @@ preprocess <- function(data) {
 
   if(length(cat.names)>=1){
 
-    if(is.data.table(data)){
+    if(data.table::is.data.table(data)){
       cat.mat <- data[, cat.names, with = FALSE]
     }else{
       cat.mat <- data[, cat.names, drop = FALSE]
@@ -151,12 +190,11 @@ preprocess <- function(data) {
 
 
 
-
-
+if(scaler=="minmax"){
   return(list(
     "data.tensor" = data.tensor,
     "na.loc" = na.loc,
-    "col.min" = col.min, "col.max" = col.max,
+    "colmin" = colmin, "colmax" = colmax,
     "original.names" = original.names,
     "ordered.names" = ordered.names,
     "ordered.types" = ordered.types,
@@ -169,6 +207,42 @@ preprocess <- function(data) {
     "cat.names" = cat.names,
     "cat.levels" = cat.levels
   ))
+}else if(scaler=="standard"){
+  return(list(
+    "data.tensor" = data.tensor,
+    "na.loc" = na.loc,
+    "colmean" = colmean, "colsd" = colsd,
+    "original.names" = original.names,
+    "ordered.names" = ordered.names,
+    "ordered.types" = ordered.types,
+    "num" = num,
+    "bin" = bin,
+    "multi" = multi,
+    "num.idx" = num.idx,
+    "bin.idx" = bin.idx,
+    "multi.idx" = multi.idx,
+    "cat.names" = cat.names,
+    "cat.levels" = cat.levels
+  ))
+}else{
+  return(list(
+    "data.tensor" = data.tensor,
+    "na.loc" = na.loc,
+    "original.names" = original.names,
+    "ordered.names" = ordered.names,
+    "ordered.types" = ordered.types,
+    "num" = num,
+    "bin" = bin,
+    "multi" = multi,
+    "num.idx" = num.idx,
+    "bin.idx" = bin.idx,
+    "multi.idx" = multi.idx,
+    "cat.names" = cat.names,
+    "cat.levels" = cat.levels
+  ))
+}
+
+
 }
 
 

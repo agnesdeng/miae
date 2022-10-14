@@ -6,18 +6,24 @@
 \usage{
 tune_dae_dropout(
   data,
+  dropout.grid = list(input.dropout = c(0.2, 0.5, 0.7), hidden.dropout = c(0.3, 0.6,
+    0.8)),
   m = 5,
-  epochs = 10,
-  batch.size = 50,
-  dropout.grid = dropout.grid,
-  latent.dropout = 0,
-  optim = "adam",
-  learning.rate = 0.001,
-  weight.decay = 0,
+  epochs = 5,
+  batch.size = 32,
+  split.ratio = 0.7,
+  shuffle = TRUE,
+  input.dropout = 0.2,
+  hidden.dropout = 0.5,
+  optimizer = "adamW",
+  learning.rate = 1e-04,
+  weight.decay = 0.002,
   momentum = 0,
   encoder.structure = c(128, 64, 32),
-  latent.dim = 8,
   decoder.structure = c(32, 64, 128),
+  act = "elu",
+  init.weight = "xavier.normal",
+  scaler = "minmax",
   verbose = TRUE,
   print.every.n = 1,
   save.model = FALSE,
@@ -27,17 +33,23 @@ tune_dae_dropout(
 \arguments{
 \item{data}{A data frame, tibble or data table with missing values.}
 
+\item{dropout.grid}{A list of tuning values for input.dropout and hidden.dropout}
+
 \item{m}{The number of imputed datasets.}
 
 \item{epochs}{The number of training epochs (iterations).}
 
 \item{batch.size}{The size of samples in each batch.}
 
-\item{dropout.grid}{A list of tuning values for input.dropout and hidden.dropout}
+\item{split.ratio}{The ratio of training data. Default: 0.7.}
 
-\item{latent.dropout}{The dropout probability of the latent layer.}
+\item{shuffle}{Whether or not to shuffle training data. Default: TRUE}
 
-\item{optim}{The name of the optimizer. Options are : "adam" (default), and "sgd".}
+\item{input.dropout}{The dropout probability of the input layer.}
+
+\item{hidden.dropout}{The dropout probability of the hidden layers.}
+
+\item{optimizer}{The name of the optimizer. Options are : "adamW" (default), "adam" and "sgd".}
 
 \item{learning.rate}{The learning rate. The default value is 0.001.}
 
@@ -47,15 +59,19 @@ tune_dae_dropout(
 
 \item{encoder.structure}{A vector indicating the structure of encoder. Default: c(128,64,32)}
 
-\item{latent.dim}{The size of latent layer. The default value is 8.}
-
 \item{decoder.structure}{A vector indicating the structure of decoder. Default: c(32,64,128)}
+
+\item{act}{The name of activation function. Can be: "relu", "elu", "leaky.relu", "tanh", "sigmoid" and "identity".}
+
+\item{init.weight}{Techniques for weights initialization. Can be "xavier.uniform" or "kaiming.uniform".}
+
+\item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" or "none".}
 
 \item{verbose}{Whether or not to print training loss information. Default: TRUE.}
 
 \item{print.every.n}{If verbose is set to TRUE, print out training loss for every n epochs.}
 
-\item{save.model}{Whether or not to save the imputation models for different combinations of dropouts. Default: FALSE.}
+\item{save.model}{Whether or not to save the imputation model. Default: FALSE.}
 
 \item{path}{The path where the final imputation model will be saved.}
 }

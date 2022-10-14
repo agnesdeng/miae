@@ -19,7 +19,7 @@
 #' #plot the multiply imputed values for variable "BMPHEAD"
 #' plot_hist(imputation.list = imputed.data, var.name = "BMPHEAD",
 #'   original.data = nhanes3)
-plot_density <- function(imputation.list, var.name, original.data, true.data = NULL, color.pal = NULL, xlim = NULL) {
+plot_density <- function(imputation.list, var.name, original.data, true.data = NULL, color.pal = NULL, xlim = NULL,main = NULL) {
 
   Types <- feature_type(imputation.list[[1]])
   if (Types[var.name] == "binary" | Types[var.name] == "multiclass") {
@@ -39,7 +39,6 @@ plot_density <- function(imputation.list, var.name, original.data, true.data = N
    # geom_histogram(alpha = 0.5, aes(fill = m.set, color = m.set, y = ..density..), breaks = breaks) +
     geom_density(size = 1, alpha = 0.6, aes(color = m.set)) +
   # facet_grid(cols = vars(m.set)) +
-    labs(title = "Histogram with density curve", subtitle = paste(" imputed sets for variable: ", var.name)) +
     scale_color_manual(values = color.pal) +
     #scale_fill_manual(values = color.pal) +
     #guides(color = "none", fill = "none", linetype = "none") +
@@ -50,9 +49,16 @@ plot_density <- function(imputation.list, var.name, original.data, true.data = N
     )
 
   if(is.null(xlim)){
-    P
+    P<-P
   }else{
-    P+xlim(xlim)
+    P<-P+xlim(xlim)
+  }
+
+
+  if(is.null(main)){
+    P+labs(title = "Histogram with density curve", subtitle = paste(" imputed sets for variable: ", var.name))
+  }else{
+    P+labs(title = main)
   }
 
 }

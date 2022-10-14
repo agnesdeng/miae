@@ -2,7 +2,7 @@
 #' @param output.data raw output data from autoencoders
 #' @param pre.obj preprocess data object
 #' @export
-postprocess <- function(output.data, pre.obj) {
+postprocess <- function(output.data, pre.obj,scaler) {
 
   # reverse onehot categorical features
   if(length(pre.obj$cat.names)>=1){
@@ -15,8 +15,14 @@ postprocess <- function(output.data, pre.obj) {
 
 
   # unscaled numeric features
-  if(length(pre.obj$num)>=1){
-    imp.data <- rev_minmax_scaler(scaled.data = imp.data, num.names = pre.obj$num, colmin = pre.obj$col.min, colmax = pre.obj$col.max)
+  if(length(pre.obj$num)>=1 & scaler!="none"){
+    if(scaler=="minmax"){
+      imp.data <- rev_minmax_scaler(scaled.data = imp.data, num.names = pre.obj$num, colmin = pre.obj$colmin, colmax = pre.obj$colmax)
+    }else if(scaler=="standard"){
+      imp.data <- rev_standard_scaler(scaled.data = imp.data, num.names = pre.obj$num, colmean = pre.obj$colmean, colsd = pre.obj$colsd)
+    }
+
+
   }
 
   imp.data <- as.data.frame(imp.data)

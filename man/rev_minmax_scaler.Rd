@@ -2,7 +2,7 @@
 % Please edit documentation in R/data_scaler.R
 \name{rev_minmax_scaler}
 \alias{rev_minmax_scaler}
-\title{This function back-transform data to an output as data matrix}
+\title{This function back-transform minmax-scaled data to an output as data matrix}
 \usage{
 rev_minmax_scaler(scaled.data, num.names, colmin, colmax)
 }
@@ -16,5 +16,5 @@ rev_minmax_scaler(scaled.data, num.names, colmin, colmax)
 \item{colmax}{A vector that contains the maximum of each column}
 }
 \description{
-This function back-transform data to an output as data matrix
+This function back-transform minmax-scaled data to an output as data matrix
 }
