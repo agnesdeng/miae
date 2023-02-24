@@ -43,6 +43,21 @@ preprocess <- function(data, scaler) {
 
 
 
+      }else if(scaler=="decile"){
+
+        if(is.data.table(data)){
+          num.obj <- decile_scaler(data[, num, with = FALSE])
+        }else{
+          num.obj <- decile_scaler(data[, num])
+        }
+
+        num.mat <- num.obj$decile.mat
+        num.tensor <- torch::torch_tensor(num.mat)
+        decile1 <- num.obj$decile1
+        decile9 <- num.obj$decile9
+
+
+
       }else if(scaler=="standard"){
 
         if(is.data.table(data)){
@@ -195,6 +210,23 @@ if(scaler=="minmax"){
     "data.tensor" = data.tensor,
     "na.loc" = na.loc,
     "colmin" = colmin, "colmax" = colmax,
+    "original.names" = original.names,
+    "ordered.names" = ordered.names,
+    "ordered.types" = ordered.types,
+    "num" = num,
+    "bin" = bin,
+    "multi" = multi,
+    "num.idx" = num.idx,
+    "bin.idx" = bin.idx,
+    "multi.idx" = multi.idx,
+    "cat.names" = cat.names,
+    "cat.levels" = cat.levels
+  ))
+}else if(scaler=="decile"){
+  return(list(
+    "data.tensor" = data.tensor,
+    "na.loc" = na.loc,
+    "decile1" = decile1, "decile9" = decile9,
     "original.names" = original.names,
     "ordered.names" = ordered.names,
     "ordered.types" = ordered.types,

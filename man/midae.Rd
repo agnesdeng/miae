@@ -61,7 +61,7 @@ midae(
 
 \item{init.weight}{Techniques for weights initialization. Can be "xavier.uniform" or "kaiming.uniform".}
 
-\item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" or "none".}
+\item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".}
 
 \item{verbose}{Whether or not to print training loss information. Default: TRUE.}
 

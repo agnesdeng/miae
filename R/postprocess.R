@@ -18,6 +18,8 @@ postprocess <- function(output.data, pre.obj,scaler) {
   if(length(pre.obj$num)>=1 & scaler!="none"){
     if(scaler=="minmax"){
       imp.data <- rev_minmax_scaler(scaled.data = imp.data, num.names = pre.obj$num, colmin = pre.obj$colmin, colmax = pre.obj$colmax)
+    }else if(scaler=="decile"){
+      imp.data <- rev_decile_scaler(scaled.data = imp.data, num.names = pre.obj$num, decile1 = pre.obj$decile1, decile9 = pre.obj$decile9)
     }else if(scaler=="standard"){
       imp.data <- rev_standard_scaler(scaled.data = imp.data, num.names = pre.obj$num, colmean = pre.obj$colmean, colsd = pre.obj$colsd)
     }

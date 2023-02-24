@@ -15,7 +15,7 @@
 #' @param decoder.structure A vector indicating the structure of decoder. Default: c(32,64,128)
 #' @param act The name of activation function. Can be: "relu", "elu", "leaky.relu", "tanh", "sigmoid" and "identity".
 #' @param init.weight Techniques for weights initialization. Can be "xavier.uniform" or "kaiming.uniform".
-#' @param scaler The name of scaler for transforming numeric features. Can be "standard", "minmax" or "none".
+#' @param scaler The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".
 #' @param verbose Whether or not to print training loss information. Default: TRUE.
 #' @param print.every.n If verbose is set to TRUE, print out training loss for every n epochs.
 #' @param save.model Whether or not to save the imputation model. Default: FALSE.
@@ -90,7 +90,8 @@ midae <- function(data, m = 5, epochs = 5, batch.size = 16,
   }else if(optimizer=="sgd"){
     optimizer <- torch::optim_sgd(model$parameters, lr = learning.rate, momentum = momentum, weight_decay = weight.decay)
   }else if(optimizer=="adamW"){
-    optimizer <- torchopt::optim_adamw(model$parameters, lr = learning.rate, weight_decay = weight.decay)
+    #torch default eps = 1e-08, tensorfolow default eps =1e-07
+    optimizer <- torchopt::optim_adamw(model$parameters, lr = learning.rate, weight_decay = weight.decay,  eps = 1e-07)
   }
 
 
@@ -348,7 +349,8 @@ midae0 <- function(data, m = 5, epochs = 5, batch.size = 16,
   }else if(optimizer=="sgd"){
     optimizer <- torch::optim_sgd(model$parameters, lr = learning.rate, momentum = momentum, weight_decay = weight.decay)
   }else if(optimizer=="adamW"){
-    optimizer <- torchopt::optim_adamw(model$parameters, lr = learning.rate, weight_decay = weight.decay)
+    #torch default eps = 1e-08, tensorfolow default eps =1e-07
+    optimizer <- torchopt::optim_adamw(model$parameters, lr = learning.rate, weight_decay = weight.decay,  eps = 1e-07)
   }
 
 

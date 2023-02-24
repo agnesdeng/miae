@@ -1,26 +1,3 @@
-#weight initialization
-init_xavier_uniform<-function(m){
-  if(any(class(m)=="nn_linear")){
-    nn_init_xavier_uniform_(m$weight)
-    nn_init_zeros_(m$bias)
-  }
-
-}
-
-init_xavier_normal<-function(m){
-  if(any(class(m)=="nn_linear")){
-    nn_init_xavier_normal_(m$weight,gain=1.0)
-    nn_init_zeros_(m$bias)
-  }
-}
-
-
-init_xavier_midas<-function(m){
-  if(any(class(m)=="nn_linear")){
-    nn_init_xavier_normal_(m$weight,gain=1/sqrt(2))
-    nn_init_zeros_(m$bias)
-  }
-}
 
 #'scale a vector using standardize
 #'@param x a vector
@@ -97,6 +74,50 @@ minmax_scaler <- function(data) {
 rev_minmax_scaler <- function(scaled.data, num.names, colmin, colmax) {
   for (var in num.names) {
     scaled.data[, var] <- scaled.data[, var] * (colmax[var] - colmin[var]) + colmin[var]
+  }
+  scaled.data
+}
+
+
+
+
+#' scale a vector using decile
+#' @param x a vector
+#' @export
+decile <- function(x) {
+  (x - quantile(x,  probs = c(0.1)) / quantile(x,  probs = c(0.9)) - quantile(x,  probs = c(0.1)))
+}
+
+
+
+#' scale a dataset using decile and return a scaled dataframe, the 1st decile and the 9th decile of each column
+#' @param data A data frame or tibble
+#' @importFrom dplyr mutate_all
+#' @importFrom stats median
+#' @export
+decile_scaler <- function(data) {
+  pre <- dplyr::mutate_all(data, ~ ifelse(is.na(.), median(., na.rm = TRUE), .))
+  decile1 <- apply(pre, 2, quantile, probs = 0.1)
+  decile9 <- apply(pre, 2, quantile, probs = 0.9)
+  decile.obj <- NULL
+  decile.obj$decile.mat <- apply(pre, 2, decile)
+  decile.obj$decile1 <- decile1
+  decile.obj$decile9 <- decile9
+  return(decile.obj)
+}
+
+
+
+
+#' This function back-transform decile-scaled data to an output as data matrix
+#' @param scaled.data A matrix or array with scaled numeric data
+#' @param num.names the names of numeric features
+#' @param decile1 A vector that contains the the 1st decile (10th percentile) of each column
+#' @param decile9 A vector that contains the the 9th decile (90th percentile) of each column
+#' @export
+rev_decile_scaler <- function(scaled.data, num.names, decile1, decile9) {
+  for (var in num.names) {
+    scaled.data[, var] <- scaled.data[, var] * (decile9[var] - decile1[var]) + decile1[var]
   }
   scaled.data
 }
