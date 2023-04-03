@@ -2,27 +2,35 @@
 % Please edit documentation in R/mivae.R
 \name{mivae}
 \alias{mivae}
-\title{multiple imputation through variational autoencoders with dropout (show train and valid loss)}
+\title{multiple imputation through variational autoencoders with dropout}
 \usage{
 mivae(
   data,
   m = 5,
+  beta = 1,
+  pmm.type = "auto",
+  pmm.k = 5,
+  pmm.link = "prob",
+  pmm.save.vars = NULL,
   epochs = 5,
   batch.size = 32,
-  split.ratio = 0.7,
+  subsample = 1,
   shuffle = TRUE,
-  input.dropout = 0,
-  hidden.dropout = 0,
+  input.dropout = 0.2,
+  hidden.dropout = 0.5,
   optimizer = "adamW",
   learning.rate = 1e-04,
-  weight.decay = 0,
+  weight.decay = 0.002,
   momentum = 0,
+  eps = 1e-07,
   encoder.structure = c(128, 64, 32),
-  latent.dim = 8,
+  latent.dim = 16,
   decoder.structure = c(32, 64, 128),
   act = "elu",
   init.weight = "xavier.normal",
-  scaler = "minmax",
+  scaler = "none",
+  loss.na.scale = FALSE,
+  early_stopping_epochs = 10,
   verbose = TRUE,
   print.every.n = 1,
   save.model = FALSE,
@@ -34,11 +42,30 @@ mivae(
 
 \item{m}{The number of imputed datasets.}
 
+\item{pmm.type}{The type of predictive mean matching (PMM). Possible values:
+\itemize{
+\item \code{NULL}: Imputations without PMM;
+\item \code{0}: Imputations with PMM type 0;
+\item \code{1}: Imputations with PMM type 1;
+\item \code{2}: Imputations with PMM type 2;
+\item \code{"auto"} (Default): Imputations with PMM type 2 for numeric/integer variables; imputations without PMM for categorical variables.
+}}
+
+\item{pmm.k}{The number of donors for predictive mean matching. Default: 5}
+
+\item{pmm.link}{The link for predictive mean matching in binary variables
+\itemize{
+\item \code{"prob"} (Default): use probabilities;
+\item \code{"logit"}: use logit values.
+}}
+
+\item{pmm.save.vars}{The names of variables whose predicted values of observed entries will be saved. Only use for PMM.}
+
 \item{epochs}{The number of training epochs (iterations).}
 
-\item{batch.size}{The size of samples in each batch.}
+\item{batch.size}{The size of samples in each batch. Default: 32.}
 
-\item{split.ratio}{The ratio of training data. Default: 0.7.}
+\item{subsample}{The subsample ratio of training data. Default: 1.}
 
 \item{shuffle}{Whether or not to shuffle training data. Default: TRUE}
 
@@ -54,9 +81,11 @@ mivae(
 
 \item{momentum}{Parameter for "sgd" optimizer. It is used for accelerating SGD in the relevant direction and dampens oscillations.}
 
+\item{eps}{A small positive value used to prevent division by zero for the "adamW" optimizer. Default: 1e-07.}
+
 \item{encoder.structure}{A vector indicating the structure of encoder. Default: c(128,64,32)}
 
-\item{latent.dim}{The size of latent layer. The default value is 8.}
+\item{latent.dim}{The size of latent layer. The default value is 16.}
 
 \item{decoder.structure}{A vector indicating the structure of decoder. Default: c(32,64,128)}
 
@@ -64,7 +93,11 @@ mivae(
 
 \item{init.weight}{Techniques for weights initialization. Can be "xavier.uniform" or "kaiming.uniform".}
 
-\item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" or "none".}
+\item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".}
+
+\item{loss.na.scale}{Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.}
+
+\item{early_stopping_epochs}{An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.}
 
 \item{verbose}{Whether or not to print training loss information. Default: TRUE.}
 
@@ -75,9 +108,9 @@ mivae(
 \item{path}{The path where the final imputation model will be saved.}
 }
 \description{
-multiple imputation through variational autoencoders with dropout (show train and valid loss)
+multiple imputation through variational autoencoders with dropout
 }
 \examples{
-withNA.df <- createNA(data = iris,p = 0.2)
-imputed.data <- mivae(data = withNA.df, m = 5, epochs = 5, path = file.path(tempdir(),"mivaemodel.pt")
+withNA.df <- createNA(data = iris, p = 0.2)
+imputed.data <- mivae(data = withNA.df, m = 5, epochs = 5, path = file.path(tempdir(), "mivaemodel.pt"))
 }

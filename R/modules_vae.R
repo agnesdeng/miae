@@ -5,10 +5,9 @@
 #' @export
 vae <- nn_module(
   "vae",
-  initialize = function(n.features, input.dropout, hidden.dropout, encoder.structure,latent.dim, decoder.structure, act) {
-
+  initialize = function(n.features, input.dropout, hidden.dropout, encoder.structure, latent.dim, decoder.structure, act) {
     self$input.dropout <- input.dropout
-    #self$latent.dropout <- latent.dropout
+    # self$latent.dropout <- latent.dropout
     self$hidden.dropout <- hidden.dropout
 
     # encoder
@@ -21,20 +20,21 @@ vae <- nn_module(
         encoder.list[[2 * i - 1]] <- nn_linear(encoder.structure[i - 1], encoder.structure[i])
       }
 
-      if(act=="relu"){
+      if (act == "relu") {
         encoder.list[[2 * i]] <- nn_relu()
-      }else if(act=="elu"){
+      } else if (act == "elu") {
         encoder.list[[2 * i]] <- nn_elu()
-      }else if(act=="identity"){
+      } else if (act == "identity") {
         encoder.list[[2 * i]] <- nn_identity()
-      }else if(act=="tanh"){
+      } else if (act == "tanh") {
         encoder.list[[2 * i]] <- nn_tanh()
-      }else if(act=="sigmoid"){
+      } else if (act == "sigmoid") {
         encoder.list[[2 * i]] <- nn_sigmoid()
-      }else if(act=="leaky.relu"){
+      } else if (act == "leaky.relu") {
         encoder.list[[2 * i]] <- nn_leaky_relu(negative_slope = 0.01)
+      }else{
+        stop("This activation function is not supported yet")
       }
-
     }
 
     # encoder.list[[2*length(encoder.structure)+1]]<- nn_linear(encoder.structure[i],latent.dim)
@@ -57,47 +57,43 @@ vae <- nn_module(
         decoder.list[[2 * i - 1]] <- nn_linear(decoder.structure[i - 1], decoder.structure[i])
       }
 
-      if(act=="relu"){
+      if (act == "relu") {
         decoder.list[[2 * i]] <- nn_relu()
-      }else if (act=="elu"){
+      } else if (act == "elu") {
         decoder.list[[2 * i]] <- nn_elu()
-      }else if(act=="identity"){
+      } else if (act == "identity") {
         decoder.list[[2 * i]] <- nn_identity()
-      }else if(act=="tanh"){
+      } else if (act == "tanh") {
         decoder.list[[2 * i]] <- nn_tanh()
-      }else if(act=="sigmoid"){
+      } else if (act == "sigmoid") {
         decoder.list[[2 * i]] <- nn_sigmoid()
-      }else if(act=="leaky.relu"){
+      } else if (act == "leaky.relu") {
         decoder.list[[2 * i]] <- nn_leaky_relu(negative_slope = 0.01)
+      }else{
+        stop("This activation function is not supported yet")
       }
-
     }
 
     decoder.list[[2 * length(decoder.structure) + 1]] <- nn_linear(decoder.structure[i], n.features)
 
     self$decoder <- nn_module_list(modules = decoder.list)
   },
-
-
   forward = function(x) {
-
-    y<-nnf_dropout(input = x, p = self$input.dropout, inplace = FALSE)
+    y <- nnf_dropout(input = x, p = self$input.dropout, inplace = FALSE)
 
     for (i in 1:length(self$encoder)) {
-
       y <- self$encoder[[i]](y)
 
-      if(i %% 2 ==0){
-        y <-nnf_dropout(input = y, p = self$hidden.dropout,inplace= FALSE)
+      if (i %% 2 == 0) {
+        y <- nnf_dropout(input = y, p = self$hidden.dropout, inplace = FALSE)
       }
-
     }
 
     mu <- self$mean(y)
     log.var <- self$log_var(y)
-    #z <- mu + torch_exp(log.var$mul(0.5)) * torch_randn(c(dim(x)[1], self$latent.dim))
+    # z <- mu + torch_exp(log.var$mul(0.5)) * torch_randn(c(dim(x)[1], self$latent.dim))
 
-    ###reparameterization
+    ### reparameterization
     std <- torch_exp(log.var$mul(0.5))
     eps <- torch_randn_like(std)
     z <- mu + eps * std
@@ -105,13 +101,11 @@ vae <- nn_module(
 
 
     for (i in 1:length(self$decoder)) {
-
       z <- self$decoder[[i]](z)
 
-      if(i %% 2 ==0){
-        z <-nnf_dropout(input = z, p = self$hidden.dropout,inplace= FALSE)
+      if (i %% 2 == 0) {
+        z <- nnf_dropout(input = z, p = self$hidden.dropout, inplace = FALSE)
       }
-
     }
     list("reconstrx" = z, "mu" = mu, "log.var" = log.var)
 

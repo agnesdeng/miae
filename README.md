@@ -36,39 +36,42 @@ colSums(is.na(penguins))
 #>                 2                 2                11                 0
 
 
-midae.imputed <- midae(data = penguins, m = 5, epochs = 10, batch.size = 16,
-    split.ratio = 0.7, shuffle = TRUE, input.dropout = 0.2, hidden.dropout = 0.5,
-    optimizer = "adamW", learning.rate = 1e-04, weight.decay = 0.002,
-    momentum = 0, encoder.structure = c(128, 64, 32), decoder.structure = c(32,
-        64, 128), act = "elu", init.weight = "xavier.uniform",
-    scaler = "minmax", verbose = TRUE, print.every.n = 1, save.model = FALSE,
-    path = NULL)
-#> Loss at epoch 1: training: 10.299205, validation: 10.888454
-#> Loss at epoch 2: training: 10.275936, validation: 11.384246
-#> Loss at epoch 3: training: 9.750004, validation: 10.271372
-#> Loss at epoch 4: training: 9.907795, validation: 9.924134
-#> Loss at epoch 5: training: 9.639254, validation: 9.603723
-#> Loss at epoch 6: training: 9.457273, validation: 9.964234
-#> Loss at epoch 7: training: 8.658179, validation: 8.908058
-#> Loss at epoch 8: training: 8.535068, validation: 9.024557
-#> Loss at epoch 9: training: 8.758941, validation: 8.026823
-#> Loss at epoch 10: training: 8.371416, validation: 7.533647
+midae.imputed <- midae(data = penguins, m = 5, device = "cpu",
+    pmm.type = "auto", pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL,
+    epochs = 10, batch.size = 32, subsample = 0.7, shuffle = TRUE,
+    input.dropout = 0.2, hidden.dropout = 0.5, optimizer = "adamW",
+    learning.rate = 1e-04, weight.decay = 0.002, momentum = 0,
+    eps = 1e-07, encoder.structure = c(128, 64, 32), decoder.structure = c(32,
+        64, 128), act = "elu", init.weight = "xavier.normal",
+    scaler = "minmax", loss.na.scale = FALSE, early_stopping_epochs = 10,
+    verbose = TRUE, print.every.n = 1, save.model = FALSE, path = file.path(tempdir(),
+        "midaemodel.pt"))
+#> Loss at epoch 1: training: 5.994925, validation: 4.972960
+#> Loss at epoch 2: training: 5.486036, validation: 6.118598
+#> Loss at epoch 3: training: 5.841651, validation: 5.217031
+#> Loss at epoch 4: training: 5.412953, validation: 5.340371
+#> Loss at epoch 5: training: 5.304536, validation: 5.382771
+#> Loss at epoch 6: training: 5.680770, validation: 5.121284
+#> Loss at epoch 7: training: 5.206397, validation: 5.169374
+#> Loss at epoch 8: training: 5.205464, validation: 4.857170
+#> Loss at epoch 9: training: 5.026849, validation: 4.663248
+#> Loss at epoch 10: training: 5.000378, validation: 4.804644
 
 # obtain the fifth imputed dataset
 midae.imputed[[5]]
 #> # A tibble: 344 × 8
 #>    species island    bill_length_mm bill_depth_mm flipper_…¹ body_…² sex    year
-#>    <fct>   <fct>              <dbl>         <dbl>      <dbl>   <dbl> <fct> <int>
-#>  1 Adelie  Torgersen           39.1         18.7       181     3750  male   2007
-#>  2 Adelie  Torgersen           39.5         17.4       186     3800  fema…  2007
-#>  3 Adelie  Torgersen           40.3         18         195     3250  fema…  2007
-#>  4 Adelie  Torgersen          -25.0          6.81       82.5   8748. fema…  2007
-#>  5 Adelie  Torgersen           36.7         19.3       193     3450  fema…  2007
-#>  6 Adelie  Torgersen           39.3         20.6       190     3650  male   2007
-#>  7 Adelie  Torgersen           38.9         17.8       181     3625  fema…  2007
-#>  8 Adelie  Torgersen           39.2         19.6       195     4675  male   2007
-#>  9 Adelie  Torgersen           34.1         18.1       193     3475  fema…  2007
-#> 10 Adelie  Torgersen           42           20.2       190     4250  male   2007
+#>    <fct>   <fct>              <dbl>         <dbl>      <int>   <int> <fct> <int>
+#>  1 Adelie  Torgersen           39.1          18.7        181    3750 male   2007
+#>  2 Adelie  Torgersen           39.5          17.4        186    3800 fema…  2007
+#>  3 Adelie  Torgersen           40.3          18          195    3250 fema…  2007
+#>  4 Adelie  Torgersen           41.4          13.5         NA      NA male   2007
+#>  5 Adelie  Torgersen           36.7          19.3        193    3450 fema…  2007
+#>  6 Adelie  Torgersen           39.3          20.6        190    3650 male   2007
+#>  7 Adelie  Torgersen           38.9          17.8        181    3625 fema…  2007
+#>  8 Adelie  Torgersen           39.2          19.6        195    4675 male   2007
+#>  9 Adelie  Torgersen           34.1          18.1        193    3475 fema…  2007
+#> 10 Adelie  Torgersen           42            20.2        190    4250 male   2007
 #> # … with 334 more rows, and abbreviated variable names ¹​flipper_length_mm,
 #> #   ²​body_mass_g
 
@@ -77,39 +80,51 @@ midae.imputed[[5]]
 # variable 'bill_length_mm'
 show_var(imputation.list = midae.imputed, var.name = "bill_length_mm",
     original.data = penguins)
-#>          m1        m2        m3        m4        m5
-#> 1: 12.83791 52.968483 57.652382 114.07214 -25.03034
-#> 2: 32.66182 -1.516143 -5.914922  42.28546  68.24944
+#>      m1   m2   m3   m4   m5
+#> 1: 41.1 50.8 36.3 33.1 41.4
+#> 2: 34.4 48.1 36.2 44.0 34.6
 ```
 
 ## 3. Multiple imputation with variational autoencoder
 
 ``` r
-
-mivae.imputed <- mivae(data = penguins, m = 5, epochs = 10, batch.size = 16,
-    split.ratio = 0.7, shuffle = TRUE, input.dropout = 0.2, hidden.dropout = 0.5,
-    optimizer = "adamW", learning.rate = 1e-04, weight.decay = 0.002,
-    momentum = 0, encoder.structure = c(128, 64, 32), latent.dim = 4,
-    decoder.structure = c(32, 64, 128), act = "elu", init.weight = "xavier.uniform",
-    scaler = "minmax", verbose = FALSE, print.every.n = 1, save.model = FALSE,
-    path = NULL)
+mivae.imputed <- mivae(data = penguins, m = 5, beta = 1, pmm.type = "auto",
+    pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL, epochs = 10,
+    batch.size = 32, subsample = 0.7, shuffle = TRUE, input.dropout = 0.2,
+    hidden.dropout = 0.5, optimizer = "adamW", learning.rate = 1e-04,
+    weight.decay = 0.002, momentum = 0, eps = 1e-07, encoder.structure = c(128,
+        64, 32), latent.dim = 4, decoder.structure = c(32, 64,
+        128), act = "elu", init.weight = "xavier.normal", scaler = "minmax",
+    loss.na.scale = FALSE, early_stopping_epochs = 10, verbose = TRUE,
+    print.every.n = 1, save.model = FALSE, path = file.path(tempdir(),
+        "mivaemodel.pt"))
+#> Loss at epoch 1: training: 7.173252, validation: 7.833011
+#> Loss at epoch 2: training: 6.875861, validation: 6.893571
+#> Loss at epoch 3: training: 6.598606, validation: 7.147669
+#> Loss at epoch 4: training: 6.484610, validation: 6.685006
+#> Loss at epoch 5: training: 6.264470, validation: 6.330046
+#> Loss at epoch 6: training: 6.478614, validation: 6.349185
+#> Loss at epoch 7: training: 5.969728, validation: 6.308928
+#> Loss at epoch 8: training: 5.972846, validation: 5.935225
+#> Loss at epoch 9: training: 5.701628, validation: 5.801384
+#> Loss at epoch 10: training: 5.632129, validation: 6.100064
 
 
 # obtain the fifth imputed dataset
 mivae.imputed[[5]]
 #> # A tibble: 344 × 8
 #>    species island    bill_length_mm bill_depth_mm flipper_…¹ body_…² sex    year
-#>    <fct>   <fct>              <dbl>         <dbl>      <dbl>   <dbl> <fct> <int>
-#>  1 Adelie  Torgersen           39.1          18.7       181    3750  male   2007
-#>  2 Adelie  Torgersen           39.5          17.4       186    3800  fema…  2007
-#>  3 Adelie  Torgersen           40.3          18         195    3250  fema…  2007
-#>  4 Adelie  Torgersen           65.2          16.9       200.   -432. male   2007
-#>  5 Adelie  Torgersen           36.7          19.3       193    3450  fema…  2007
-#>  6 Adelie  Torgersen           39.3          20.6       190    3650  male   2007
-#>  7 Adelie  Torgersen           38.9          17.8       181    3625  fema…  2007
-#>  8 Adelie  Torgersen           39.2          19.6       195    4675  male   2007
-#>  9 Adelie  Torgersen           34.1          18.1       193    3475  fema…  2007
-#> 10 Adelie  Torgersen           42            20.2       190    4250  male   2007
+#>    <fct>   <fct>              <dbl>         <dbl>      <int>   <int> <fct> <int>
+#>  1 Adelie  Torgersen           39.1          18.7        181    3750 male   2007
+#>  2 Adelie  Torgersen           39.5          17.4        186    3800 fema…  2007
+#>  3 Adelie  Torgersen           40.3          18          195    3250 fema…  2007
+#>  4 Adelie  Torgersen           45.5          16.6         NA      NA fema…  2007
+#>  5 Adelie  Torgersen           36.7          19.3        193    3450 fema…  2007
+#>  6 Adelie  Torgersen           39.3          20.6        190    3650 male   2007
+#>  7 Adelie  Torgersen           38.9          17.8        181    3625 fema…  2007
+#>  8 Adelie  Torgersen           39.2          19.6        195    4675 male   2007
+#>  9 Adelie  Torgersen           34.1          18.1        193    3475 fema…  2007
+#> 10 Adelie  Torgersen           42            20.2        190    4250 fema…  2007
 #> # … with 334 more rows, and abbreviated variable names ¹​flipper_length_mm,
 #> #   ²​body_mass_g
 
@@ -118,9 +133,9 @@ mivae.imputed[[5]]
 # variable 'bill_length_mm'
 show_var(imputation.list = mivae.imputed, var.name = "bill_length_mm",
     original.data = penguins)
-#>          m1       m2       m3       m4       m5
-#> 1: 91.20238 55.95815 53.24149 47.53025 65.19030
-#> 2: 20.21769 32.69418 24.08430 27.76072 24.78258
+#>      m1   m2   m3   m4   m5
+#> 1: 49.7 44.0 38.1 42.9 45.5
+#> 2: 45.9 35.7 40.2 42.2 46.4
 ```
 
 ## 4. Impute new data using a saved imputation model
@@ -132,22 +147,22 @@ train.data <- penguins[idx, ]
 test.data <- penguins[-idx, ]
 
 
+midae.obj <- midae(data = train.data, m = 5, epochs = 10, subsample = 1,
+    early_stopping_epochs = 1, scaler = "minmax", save.model = TRUE,
+    path = file.path(tempdir(), "midaemodel.pt"))
+#> Loss at epoch 1: 5.259101
+#> Loss at epoch 2: 5.380220
+#> Loss at epoch 3: 4.955275
+#> Loss at epoch 4: 5.024055
+#> Loss at epoch 5: 5.226000
+#> Loss at epoch 6: 4.944716
+#> Loss at epoch 7: 4.783398
+#> Loss at epoch 8: 4.626323
+#> Loss at epoch 9: 4.611824
+#> Loss at epoch 10: 4.804672
+#> [1] "The DAE multiple imputation model is saved in  C:\\Users\\agnes\\AppData\\Local\\Temp\\RtmpI5FXK7/midaemodel.pt"
 
-midae.imputed <- midae(data = train.data, m = 5, epochs = 10,
-    scaler = "minmax", save.model = TRUE, path = file.path(tempdir(),
-        "midaemodel.pt"))
-#> Loss at epoch 1: training: 14.065244, validation: 14.268253
-#> Loss at epoch 2: training: 13.267585, validation: 13.000554
-#> Loss at epoch 3: training: 11.814671, validation: 12.848388
-#> Loss at epoch 4: training: 13.013980, validation: 13.733624
-#> Loss at epoch 5: training: 11.797876, validation: 11.002292
-#> Loss at epoch 6: training: 11.717374, validation: 14.515843
-#> Loss at epoch 7: training: 11.115485, validation: 11.930919
-#> Loss at epoch 8: training: 10.961864, validation: 10.763505
-#> Loss at epoch 9: training: 11.855260, validation: 10.489598
-#> Loss at epoch 10: training: 10.729342, validation: 9.940429
 
-
-midae.newdata <- impute_new(path = file.path(tempdir(), "midaemodel.pt"),
-    newdata = test.data, scaler = "minmax", m = 5)
+midae.newdata <- impute_new(object = midae.obj, newdata = test.data,
+    m = 5)
 ```

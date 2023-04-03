@@ -34,7 +34,6 @@
 #' @param init.weight Techniques for weights initialization. Can be "xavier.uniform" or "kaiming.uniform".
 #' @param scaler The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".
 #' @param loss.na.scale Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.
-#' @param early_stopping_epochs An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.
 #' @param verbose Whether or not to print training loss information. Default: TRUE.
 #' @param print.every.n If verbose is set to TRUE, print out training loss for every n epochs.
 #' @param save.model Whether or not to save the imputation model. Default: FALSE.
@@ -53,24 +52,13 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
                   encoder.structure = c(128, 64, 32), decoder.structure = c(32, 64, 128),
                   act = "elu", init.weight = "xavier.normal", scaler = "none",
                   loss.na.scale = FALSE,
-                  early_stopping_epochs = 10,
                   verbose = TRUE, print.every.n = 1, save.model = FALSE, path = NULL) {
 
-   device <- torch_device(device)
+  device <- torch_device(device)
 
-  if(subsample == 1 & early_stopping_epochs>1){
-    stop("To use early stopping based on validation error, please set subsample < 1.")
+  if (save.model & is.null(path)) {
+    stop("Please specify a path to save the imputation model.")
   }
-
-  #if (save.model & is.null(path)) {
-  #  stop("Please specify a path to save the imputation model.")
- # }
-
-   # save.model & is.null(path)
-   if (is.null(path)) {
-     stop("Please specify a path to save the imputation model.")
-   }
-
 
   # check pmm.save.vars #included in colnames of data
   origin.names <- colnames(data)
@@ -79,9 +67,9 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
   }
 
 
-  pre.obj <- preprocess(data, scaler = scaler, device = device)
+  pre.obj <- preprocess(data, scaler = scaler)
 
-  torch.data <- torch_dataset(data, scaler = scaler, device = device)
+  torch.data <- torch_dataset(data, scaler = scaler)
 
 
   n.features <- torch.data$.ncol()
@@ -165,7 +153,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
   if (subsample == 1) {
     # use all available data
     train.dl <- torch::dataloader(dataset = torch.data, batch_size = batch.size, shuffle = shuffle)
-    train.num.batches <- length(train.dl)
+    train.num.batches<-length(train.dl)
   } else {
     train.idx <- sample(1:n.samples, size = floor(subsample * n.samples), replace = FALSE)
     valid.idx <- setdiff(1:n.samples, train.idx)
@@ -176,12 +164,12 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
     train.dl <- dataloader(dataset = train.ds, batch_size = batch.size, shuffle = shuffle)
     valid.dl <- dataloader(dataset = valid.ds, batch_size = batch.size, shuffle = FALSE)
 
-    train.num.batches <- length(train.dl)
+    train.num.batches<-length(train.dl)
     valid.num.batches <- length(valid.dl)
   }
 
 
-  model <- dae(n.features = n.features, input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, decoder.structure = decoder.structure, act = act)$to(device = device)
+  model <- dae(n.features = n.features, input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, decoder.structure = decoder.structure, act = act)
 
 
 
@@ -215,8 +203,6 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
 
 
   # epochs: number of iterations
-  best.loss <- Inf
-  num.nondecresing.epochs <- 0
 
   for (epoch in seq_len(epochs)) {
     model$train()
@@ -231,23 +217,21 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
 
     # b<- train.dl %>%
     # torch::dataloader_make_iter() %>%
-    # torch::dataloader_next()
+    #torch::dataloader_next()
     ####
 
     coro::loop(for (b in train.dl) { # loop over all batches in each epoch
 
-
-
-      Out <- model(b$data$to(device = device))
+      Out <- model(b$data)
 
       # numeric
-      if (length(pre.obj$num) > 0) {
+      if(length(pre.obj$num)>0){
         num.cost <- vector("list", length = length(pre.obj$num))
         names(num.cost) <- pre.obj$num
 
         for (var in pre.obj$num) {
           obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-          num.cost[[var]] <- num_loss(input = Out[obs.idx, pre.obj$num.idx[[var]]], target = b$data[obs.idx, pre.obj$num.idx[[var]]]$to(device = device))$to(device = "cpu")
+          num.cost[[var]] <- num_loss(input = Out[obs.idx, pre.obj$num.idx[[var]]], target = b$data[obs.idx, pre.obj$num.idx[[var]]])
         }
 
         if (loss.na.scale) {
@@ -263,7 +247,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
         } else {
           total.num.cost <- do.call(sum, num.cost)
         }
-      } else {
+      }else{
         total.num.cost <- 0
       }
 
@@ -272,13 +256,13 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
 
 
       # binary
-      if (length(pre.obj$bin) > 0) {
+      if(length(pre.obj$bin)>0){
         bin.cost <- vector("list", length = length(pre.obj$bin))
         names(bin.cost) <- pre.obj$bin
 
         for (var in pre.obj$bin) {
           obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-          bin.cost[[var]] <- bin_loss(input = Out[obs.idx, pre.obj$bin.idx[[var]]], target = b$data[obs.idx, pre.obj$bin.idx[[var]]]$to(device = device))$to(device = "cpu")
+          bin.cost[[var]] <- bin_loss(input = Out[obs.idx, pre.obj$bin.idx[[var]]], target = b$data[obs.idx, pre.obj$bin.idx[[var]]])
         }
 
         if (loss.na.scale) {
@@ -294,21 +278,21 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
         } else {
           total.bin.cost <- do.call(sum, bin.cost)
         }
-      } else {
-        total.bin.cost <- 0
+      }else{
+        total.bin.cost<-0
       }
 
 
 
 
       # multiclass
-      if (length(pre.obj$multi) > 0) {
+      if(length(pre.obj$multi)>0){
         multi.cost <- vector("list", length = length(pre.obj$multi))
         names(multi.cost) <- pre.obj$multi
 
         for (var in pre.obj$multi) {
           obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-          multi.cost[[var]] <- multi_loss(input = Out[obs.idx, pre.obj$multi.idx[[var]]], target = torch::torch_argmax(b$data[obs.idx, pre.obj$multi.idx[[var]]]$to(device = device), dim = 2))$to(device = "cpu")
+          multi.cost[[var]] <- multi_loss(input = Out[obs.idx, pre.obj$multi.idx[[var]]], target = torch::torch_argmax(b$data[obs.idx, pre.obj$multi.idx[[var]]], dim = 2))
         }
 
 
@@ -325,7 +309,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
         } else {
           total.multi.cost <- do.call(sum, multi.cost)
         }
-      } else {
+      }else{
         total.multi.cost <- 0
       }
 
@@ -364,7 +348,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
         Out <- model(b$data)
 
         # numeric
-        if (length(pre.obj$num) > 0) {
+        if(length(pre.obj$num)>0){
           num.cost <- vector("list", length = length(pre.obj$num))
           names(num.cost) <- pre.obj$num
 
@@ -386,13 +370,13 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
           } else {
             total.num.cost <- do.call(sum, num.cost)
           }
-        } else {
+        }else{
           total.num.cost <- 0
         }
 
 
         # binary
-        if (length(pre.obj$bin) > 0) {
+        if(length(pre.obj$bin)>0){
           bin.cost <- vector("list", length = length(pre.obj$bin))
           names(bin.cost) <- pre.obj$bin
 
@@ -414,14 +398,14 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
           } else {
             total.bin.cost <- do.call(sum, bin.cost)
           }
-        } else {
+        }else{
           total.bin.cost <- 0
         }
 
 
 
         # multiclass
-        if (length(pre.obj$multi) > 0) {
+        if(length(pre.obj$multi)>0){
           multi.cost <- vector("list", length = length(pre.obj$multi))
           names(multi.cost) <- pre.obj$multi
 
@@ -443,7 +427,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
           } else {
             total.multi.cost <- do.call(sum, multi.cost)
           }
-        } else {
+        }else{
           total.multi.cost <- 0
         }
 
@@ -458,42 +442,16 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
       })
     }
 
-    #each epoch
-    if(subsample==1){
-      if (verbose & (epoch == 1 | epoch %% print.every.n == 0)) {
+
+
+    if (verbose & (epoch == 1 | epoch %% print.every.n == 0)) {
+      if (subsample == 1) {
         cat(sprintf("Loss at epoch %d: %1f\n", epoch, train.loss / train.num.batches))
-      }
-      if (save.model & epoch == epochs) {
-        torch::torch_save(model, path = path)
-      }
-    }else if(subsample<1){
-      valid.epoch.loss <- valid.loss / valid.num.batches
-      if (verbose & (epoch == 1 | epoch %% print.every.n == 0)) {
-        cat(sprintf("Loss at epoch %d: training: %3f, validation: %3f\n", epoch, train.loss / train.num.batches,valid.epoch.loss))
-      }
-      if(early_stopping_epochs >1){
-        if(valid.epoch.loss < best.loss){
-          best.loss <- valid.epoch.loss
-          best.epoch<-epoch
-          num.nondecresing.epochs <- 0
-          torch::torch_save(model, path = path)
-        }else{
-          num.nondecresing.epochs <- num.nondecresing.epochs + 1
-          if(num.nondecresing.epochs >= early_stopping_epochs){
-            cat(sprintf("Best loss at epoch %d: %1f\n", best.epoch, best.loss))
-            break
-          }
-        }
+      } else if (subsample < 1) {
+        cat(sprintf("Loss at epoch %d: training: %3f, validation: %3f\n", epoch, train.loss / train.num.batches, valid.loss / valid.num.batches))
       }
     }
   }
-
-
-  # model <- torch::torch_load(path = path)
-  if (subsample < 1 & early_stopping_epochs > 1) {
-    model <- torch::torch_load(path = path)
-  }
-
 
   # model <- torch::torch_load(path = path)
   model$eval()
@@ -508,19 +466,18 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
 
 
 
-
   for (i in seq_len(m)) {
-    output.data <- model(wholebatch$data)$to(device = "cpu")
+    output.data <- model(wholebatch$data)
     imp.data <- postprocess(output.data = output.data, pre.obj = pre.obj, scaler = scaler)
 
     if (isFALSE(save.model)) {
-      # don't need to save pmm values
+      #don't need to save pmm values
       if (is.null(pmm.type)) {
-        for (var in na.vars) {
+        for (var in na.vars){
           data[[var]][na.loc[, var]] <- imp.data[[var]][na.loc[, var]]
         }
-      } else if (pmm.type == 0 | pmm.type == 2) {
-        for (var in na.vars) {
+      }else if(pmm.type == 0 | pmm.type == 2){
+        for (var in na.vars){
           if (var %in% pre.obj$num) {
             # numeric or binary? check binary
             yhatobs <- imp.data[[var]][!na.loc[, var]]
@@ -555,8 +512,8 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
             data[[var]][na.loc[, var]] <- levels(data[[var]])[level.idx]
           }
         }
-      } else if (pmm.type == "auto") {
-        for (var in na.vars) {
+      }else if(pmm.type == "auto"){
+        for(var in na.vars){
           yhatobs <- imp.data[[var]][!na.loc[, var]]
           yhatmis <- imp.data[[var]][na.loc[, var]]
 
@@ -568,8 +525,9 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
             data[[var]][na.loc[, var]] <- yhatmis
           }
         }
-      } else if (pmm.type == 1) {
-        for (var in na.vars) {
+
+      }else if(pmm.type==1){
+        for(var in na.vars){
           yhatobs <- yhatobs.list[[var]]
           if (var %in% pre.obj$num) {
             yhatmis <- imp.data[[var]][na.loc[, var]]
@@ -597,14 +555,15 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
           }
         }
       }
+
     } else {
       # need to save pmm values
       if (is.null(pmm.type)) {
-        for (var in na.vars) {
+        for (var in na.vars){
           data[[var]][na.loc[, var]] <- imp.data[[var]][na.loc[, var]]
         }
-      } else if (pmm.type == 0 | pmm.type == 2) {
-        for (var in na.vars) {
+      }else if(pmm.type == 0 | pmm.type == 2){
+        for (var in na.vars){
           if (var %in% pre.obj$num) {
             # numeric or binary? check binary
             yhatobs <- imp.data[[var]][!na.loc[, var]]
@@ -641,8 +600,8 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
           # save yhatobs
           yhatobs.list[[i]][[var]] <- yhatobs
         }
-      } else if (pmm.type == "auto") {
-        for (var in na.vars) {
+      }else if(pmm.type == "auto"){
+        for(var in na.vars){
           yhatobs <- imp.data[[var]][!na.loc[, var]]
           yhatmis <- imp.data[[var]][na.loc[, var]]
 
@@ -656,8 +615,9 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
             data[[var]][na.loc[, var]] <- yhatmis
           }
         }
-      } else if (pmm.type == 1) {
-        for (var in na.vars) {
+
+      }else if(pmm.type==1){
+        for(var in na.vars){
           yhatobs <- yhatobs.list[[var]]
           if (var %in% pre.obj$num) {
             yhatmis <- imp.data[[var]][na.loc[, var]]
@@ -724,7 +684,10 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
           }
         }
       }
-    } # save.model=TRUE
+
+
+
+    }#save.model=TRUE
 
     imputed.data[[i]] <- data
   }

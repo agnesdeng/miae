@@ -2,14 +2,19 @@
 % Please edit documentation in R/midae.R
 \name{midae}
 \alias{midae}
-\title{multiple imputation through denoising autoencoders with dropout (show train and valid loss)}
+\title{Multiple imputation through denoising autoencoders with dropout}
 \usage{
 midae(
   data,
   m = 5,
+  device = "cpu",
+  pmm.type = "auto",
+  pmm.k = 5,
+  pmm.link = "prob",
+  pmm.save.vars = NULL,
   epochs = 5,
-  batch.size = 16,
-  split.ratio = 0.7,
+  batch.size = 32,
+  subsample = 1,
   shuffle = TRUE,
   input.dropout = 0.2,
   hidden.dropout = 0.5,
@@ -17,11 +22,14 @@ midae(
   learning.rate = 1e-04,
   weight.decay = 0.002,
   momentum = 0,
+  eps = 1e-07,
   encoder.structure = c(128, 64, 32),
   decoder.structure = c(32, 64, 128),
   act = "elu",
   init.weight = "xavier.normal",
   scaler = "none",
+  loss.na.scale = FALSE,
+  early_stopping_epochs = 10,
   verbose = TRUE,
   print.every.n = 1,
   save.model = FALSE,
@@ -33,11 +41,32 @@ midae(
 
 \item{m}{The number of imputed datasets.}
 
+\item{device}{Device to use. Either "cpu" or "cuda" for GPU.}
+
+\item{pmm.type}{The type of predictive mean matching (PMM). Possible values:
+\itemize{
+\item \code{NULL}: Imputations without PMM;
+\item \code{0}: Imputations with PMM type 0;
+\item \code{1}: Imputations with PMM type 1;
+\item \code{2}: Imputations with PMM type 2;
+\item \code{"auto"} (Default): Imputations with PMM type 2 for numeric/integer variables; imputations without PMM for categorical variables.
+}}
+
+\item{pmm.k}{The number of donors for predictive mean matching. Default: 5}
+
+\item{pmm.link}{The link for predictive mean matching in binary variables
+\itemize{
+\item \code{"prob"} (Default): use probabilities;
+\item \code{"logit"}: use logit values.
+}}
+
+\item{pmm.save.vars}{The names of variables whose predicted values of observed entries will be saved. Only use for PMM.}
+
 \item{epochs}{The number of training epochs (iterations).}
 
-\item{batch.size}{The size of samples in each batch.}
+\item{batch.size}{The size of samples in each batch. Default: 32.}
 
-\item{split.ratio}{The ratio of training data. Default: 0.7.}
+\item{subsample}{The subsample ratio of training data. Default: 1.}
 
 \item{shuffle}{Whether or not to shuffle training data. Default: TRUE}
 
@@ -53,6 +82,8 @@ midae(
 
 \item{momentum}{Parameter for "sgd" optimizer. It is used for accelerating SGD in the relevant direction and dampens oscillations.}
 
+\item{eps}{A small positive value used to prevent division by zero for the "adamW" optimizer. Default: 1e-07.}
+
 \item{encoder.structure}{A vector indicating the structure of encoder. Default: c(128,64,32)}
 
 \item{decoder.structure}{A vector indicating the structure of decoder. Default: c(32,64,128)}
@@ -63,6 +94,10 @@ midae(
 
 \item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".}
 
+\item{loss.na.scale}{Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.}
+
+\item{early_stopping_epochs}{An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.}
+
 \item{verbose}{Whether or not to print training loss information. Default: TRUE.}
 
 \item{print.every.n}{If verbose is set to TRUE, print out training loss for every n epochs.}
@@ -72,9 +107,9 @@ midae(
 \item{path}{The path where the final imputation model will be saved.}
 }
 \description{
-multiple imputation through denoising autoencoders with dropout (show train and valid loss)
+Multiple imputation through denoising autoencoders with dropout
 }
 \examples{
-withNA.df <- createNA(data = iris,p = 0.2)
-imputed.data <- midae(data = withNA.df, m = 5, epochs = 5, path = file.path(tempdir(),"midaemodel.pt")
+withNA.df <- createNA(data = iris, p = 0.2)
+imputed.data <- midae(data = withNA.df, m = 5, epochs = 5, path = file.path(tempdir(), "midaemodel.pt"))
 }

@@ -37,6 +37,8 @@ dae <- nn_module(
         encoder.list[[2 * i]] <- nn_sigmoid()
       }else if(act=="leaky.relu"){
         encoder.list[[2 * i]] <- nn_leaky_relu(negative_slope = 0.01)
+      }else{
+        stop("This activation function is not supported yet")
       }
 
 
@@ -73,6 +75,8 @@ dae <- nn_module(
         decoder.list[[2 * i]] <- nn_sigmoid()
       }else if(act=="leaky.relu"){
         decoder.list[[2 * i]] <- nn_leaky_relu(negative_slope = 0.01)
+      }else{
+        stop("This activation function is not supported yet")
       }
 
 

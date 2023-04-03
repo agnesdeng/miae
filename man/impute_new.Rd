@@ -4,16 +4,16 @@
 \alias{impute_new}
 \title{Impute new data with a saved \code{midae} or \code{mivae} imputation model}
 \usage{
-impute_new(path, newdata, scaler = "none", m = 5)
+impute_new(object, newdata, pmm.k = NULL, m = NULL, verbose = FALSE)
 }
 \arguments{
-\item{path}{A path to the saved imputation model}
+\item{object}{A saved imputer object created by \code{midae(..., save.models = TRUE)} or \code{mivae(..., save.models = TRUE)}.}
 
 \item{newdata}{A data frame, tibble or data.table. New data with missing values.}
 
-\item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" or "none".}
+\item{pmm.k}{The number of donors for predictive mean matching. If \code{NULL} (the default), the \code{pmm.k} value in the saved imputer object will be used.}
 
-\item{m}{The number of imputed datasets. Default: 5.}
+\item{m}{The number of imputed datasets. If \code{NULL} (the default), the \code{m} value in the saved imputer object will be used.}
 }
 \value{
 A list of \code{m} imputed datasets for new data.

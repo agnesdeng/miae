@@ -4,7 +4,7 @@
 \alias{torch_dataset_idx}
 \title{prepare the dataset}
 \usage{
-torch_dataset_idx(data, idx, scaler)
+torch_dataset_idx(data, idx, scaler, device = "cpu")
 }
 \description{
 prepare the dataset
