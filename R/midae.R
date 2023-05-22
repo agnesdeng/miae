@@ -19,6 +19,7 @@
 #' @param pmm.save.vars The names of variables whose predicted values of observed entries will be saved. Only use for PMM.
 #' @param epochs The number of training epochs (iterations).
 #' @param batch.size The size of samples in each batch. Default: 32.
+#' @param drop.last Whether or not to drop the last batch. Default: FALSE
 #' @param subsample The subsample ratio of training data. Default: 1.
 #' @param shuffle Whether or not to shuffle training data. Default: TRUE
 #' @param input.dropout The dropout probability of the input layer.
@@ -29,9 +30,10 @@
 #' @param momentum Parameter for "sgd" optimizer. It is used for accelerating SGD in the relevant direction and dampens oscillations.
 #' @param eps A small positive value used to prevent division by zero for the "adamW" optimizer. Default: 1e-07.
 #' @param encoder.structure A vector indicating the structure of encoder. Default: c(128,64,32)
+#' @param latent.dim The size of latent layer. The default value is 16.
 #' @param decoder.structure A vector indicating the structure of decoder. Default: c(32,64,128)
 #' @param act The name of activation function. Can be: "relu", "elu", "leaky.relu", "tanh", "sigmoid" and "identity".
-#' @param init.weight Techniques for weights initialization. Can be "xavier.uniform" or "kaiming.uniform".
+#' @param init.weight Techniques for weights initialization. Can be "xavier.uniform", "xavier.normal" or "xavier.midas" (or "kaiming.uniform")
 #' @param scaler The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".
 #' @param loss.na.scale Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.
 #' @param early_stopping_epochs An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.
@@ -46,14 +48,14 @@
 #' withNA.df <- createNA(data = iris, p = 0.2)
 #' imputed.data <- midae(data = withNA.df, m = 5, epochs = 5, path = file.path(tempdir(), "midaemodel.pt"))
 midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL,
-                  epochs = 5, batch.size = 32,
+                  epochs = 5, batch.size = 32, drop.last = FALSE,
                   subsample = 1, shuffle = TRUE,
                   input.dropout = 0.2, hidden.dropout = 0.5,
                   optimizer = "adamW", learning.rate = 0.0001, weight.decay = 0.002, momentum = 0, eps = 1e-07,
-                  encoder.structure = c(128, 64, 32), decoder.structure = c(32, 64, 128),
-                  act = "elu", init.weight = "xavier.normal", scaler = "none",
+                  encoder.structure = c(128, 64, 32), latent.dim = 16, decoder.structure = c(32, 64, 128),
+                  act = "elu", init.weight = "xavier.normal", scaler = "standard",
                   loss.na.scale = FALSE,
-                  early_stopping_epochs = 10,
+                  early_stopping_epochs = 1,
                   verbose = TRUE, print.every.n = 1, save.model = FALSE, path = NULL) {
 
    device <- torch_device(device)
@@ -74,6 +76,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
 
   # check pmm.save.vars #included in colnames of data
   origin.names <- colnames(data)
+
   if (!all(pmm.save.vars %in% origin.names)) {
     stop("Some variables specified in `pmm.save.vars` do not exist in the dataset. Please check again.")
   }
@@ -81,12 +84,18 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
 
   pre.obj <- preprocess(data, scaler = scaler, device = device)
 
-  torch.data <- torch_dataset(data, scaler = scaler, device = device)
+  #torch.data <- torch_dataset(data, scaler = scaler, device = device)
+  #n.features <- torch.data$.ncol()
+
+  torch.data<-pre.obj$data.tensor
+  if(!torch_is_floating_point(torch.data)){
+    torch.data<-torch.data$to(dtype=torch_float())
+  }
 
 
-  n.features <- torch.data$.ncol()
+  n.features <- torch.data$size()[[2]]
 
-  n.samples <- torch.data$.length()
+  n.samples <- torch.data$size()[[1]]
 
 
   # check pmm
@@ -145,7 +154,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
       data = data, na.loc = na.loc, na.vars = na.vars, extra.vars = extra.vars, pmm.link = pmm.link,
       epochs = epochs, batch.size = batch.size, shuffle = shuffle,
       optimizer = optimizer, learning.rate = learning.rate, weight.decay = weight.decay, momentum = momentum, eps = eps,
-      encoder.structure = encoder.structure, decoder.structure = decoder.structure,
+      encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure,
       act = act, init.weight = init.weight, scaler = scaler,
       loss.na.scale = loss.na.scale,
       verbose = verbose, print.every.n = print.every.n
@@ -164,24 +173,60 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
 
   if (subsample == 1) {
     # use all available data
-    train.dl <- torch::dataloader(dataset = torch.data, batch_size = batch.size, shuffle = shuffle)
-    train.num.batches <- length(train.dl)
+    #torch.data <- torch_dataset(data, scaler = scaler, device = device)
+    #train.dl <- torch::dataloader(dataset = torch.data, batch_size = batch.size, shuffle = shuffle,  drop_last = FALSE)
+    #train.num.batches <- length(train.dl)
+    #test
+    #iter<-train.dl$.iter()
+    # b<-iter$.next()
+    # b
+   train.samples <- n.samples
+   train.idx <- 1:n.samples
+   batches<-batch_set(n.samples = train.samples, batch.size = batch.size, drop.last = drop.last)
+   batch.set<-batches$batch.set
+   train.num.batches<-batches$num.batches
+   train.torch.data<-torch.data
+
+
+
+
+    #
   } else {
+
     train.idx <- sample(1:n.samples, size = floor(subsample * n.samples), replace = FALSE)
     valid.idx <- setdiff(1:n.samples, train.idx)
 
-    train.ds <- torch_dataset_idx(data = data, idx = train.idx, scaler = scaler)
-    valid.ds <- torch_dataset_idx(data = data, idx = valid.idx, scaler = scaler)
 
-    train.dl <- dataloader(dataset = train.ds, batch_size = batch.size, shuffle = shuffle)
-    valid.dl <- dataloader(dataset = valid.ds, batch_size = batch.size, shuffle = FALSE)
 
-    train.num.batches <- length(train.dl)
-    valid.num.batches <- length(valid.dl)
+    #train.ds <- torch_dataset_idx(data = data, idx = train.idx, scaler = scaler)
+    #valid.ds <- torch_dataset_idx(data = data, idx = valid.idx, scaler = scaler)
+
+    #train.dl <- dataloader(dataset = train.ds, batch_size = batch.size, shuffle = shuffle,  drop_last = FALSE)
+    #valid.dl <- dataloader(dataset = valid.ds, batch_size = batch.size, shuffle = shuffle,  drop_last = FALSE)
+
+
+    #train.num.batches <- length(train.dl)
+    #valid.num.batches <- length(valid.dl)
+
+    train.samples <- length(train.idx)
+    valid.samples <- length(valid.idx)
+
+    train.torch.data<-torch.data[train.idx,]
+    valid.torch.data<-torch.data[valid.idx,]
+
+    batches<-batch_set(n.samples = train.samples, batch.size = batch.size, drop.last = drop.last)
+    batch.set<-batches$batch.set
+    train.num.batches<-batches$num.batches
+
+
+    valid.batches<-batch_set(n.samples = valid.samples, batch.size = batch.size, drop.last = drop.last)
+    valid.batch.set<-valid.batches$batch.set
+    valid.num.batches<-valid.batches$num.batches
+
   }
 
 
-  model <- dae(n.features = n.features, input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, decoder.structure = decoder.structure, act = act)$to(device = device)
+  model <- dae(n.features = n.features, input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure, act = act)$to(device = device)
 
 
 
@@ -219,9 +264,50 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
   num.nondecresing.epochs <- 0
 
   for (epoch in seq_len(epochs)) {
+
     model$train()
 
     train.loss <- 0
+
+    #rearrange all the data in each epoch
+    permute<-torch::torch_randperm(train.samples)+1L
+
+    train.data<-train.torch.data[permute]
+
+    for(i in 1:train.num.batches){
+
+      b<-list()
+      b.index<-batch.set[[i]]
+
+      b$data<-train.data[b.index]
+
+       #index in original full data
+      #b$index<-permute[b.index]
+      b$index<-train.idx[as.array(permute)[b.index]]
+
+      #torch.data[b$index,]
+
+      #head(b$data)
+      #head(torch.data[b$index,])
+
+
+
+      #train.idx
+      #train.idx[as.array(permute)]
+      #
+      #train.idx[86]
+
+      #torch.data[5,]
+      #torch.data[train.idx[86],]
+     # train.torch.data[86,]
+
+
+
+      #torch.data[5,]
+     # torch.data[train.idx[permute],]
+     # train.torch.data[permute]
+     # #train.torch.data[11,]
+      #train.data[1,]
 
 
 
@@ -234,11 +320,11 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
     # torch::dataloader_next()
     ####
 
-    coro::loop(for (b in train.dl) { # loop over all batches in each epoch
-
+   # coro::loop(for (b in train.dl) { # loop over all batches in each epoch
 
 
       Out <- model(b$data$to(device = device))
+      #Out <- model(b$data$to(dtype = torch_float(),device = device))
 
       # numeric
       if (length(pre.obj$num) > 0) {
@@ -247,7 +333,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
 
         for (var in pre.obj$num) {
           obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-          num.cost[[var]] <- num_loss(input = Out[obs.idx, pre.obj$num.idx[[var]]], target = b$data[obs.idx, pre.obj$num.idx[[var]]]$to(device = device))$to(device = "cpu")
+          num.cost[[var]] <- num_loss(input = Out[obs.idx, pre.obj$num.idx[[var]]], target = b$data[obs.idx, pre.obj$num.idx[[var]]]$to(device = device))
         }
 
         if (loss.na.scale) {
@@ -264,7 +350,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
           total.num.cost <- do.call(sum, num.cost)
         }
       } else {
-        total.num.cost <- 0
+        total.num.cost <- torch_zeros(1)
       }
 
 
@@ -278,7 +364,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
 
         for (var in pre.obj$bin) {
           obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-          bin.cost[[var]] <- bin_loss(input = Out[obs.idx, pre.obj$bin.idx[[var]]], target = b$data[obs.idx, pre.obj$bin.idx[[var]]]$to(device = device))$to(device = "cpu")
+          bin.cost[[var]] <- bin_loss(input = Out[obs.idx, pre.obj$bin.idx[[var]]], target = b$data[obs.idx, pre.obj$bin.idx[[var]]]$to(device = device))
         }
 
         if (loss.na.scale) {
@@ -295,7 +381,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
           total.bin.cost <- do.call(sum, bin.cost)
         }
       } else {
-        total.bin.cost <- 0
+        total.bin.cost <- torch_zeros(1)
       }
 
 
@@ -326,7 +412,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
           total.multi.cost <- do.call(sum, multi.cost)
         }
       } else {
-        total.multi.cost <- 0
+        total.multi.cost <- torch_zeros(1)
       }
 
 
@@ -346,10 +432,11 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
       batch.loss <- cost$item()
       train.loss <- train.loss + batch.loss
 
-      if (save.model & epoch == epochs) {
-        torch::torch_save(model, path = path)
-      }
-    })
+      #if (save.model & epoch == epochs) {
+       #torch::torch_save(model, path = path)
+     # }
+    #})
+    }
 
 
     ### if subsample<1, show validation error
@@ -359,10 +446,32 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
 
       valid.loss <- 0
 
-      # validation loss
-      coro::loop(for (b in valid.dl) {
-        Out <- model(b$data)
 
+      #rearrange all the data in each epoch
+      permute<-torch::torch_randperm(valid.samples)+1L
+
+      valid.data<-valid.torch.data[permute]
+      # validation loss
+      for(i in 1:valid.num.batches){
+        b<-list()
+        b.index<-valid.batch.set[[i]]
+
+        b$data<-valid.data[b.index]
+        #index in original full data
+        #b$index<-permute[b.index]
+        b$index<-valid.idx[as.array(permute)[b.index]]
+
+
+       # torch.data[b$index,]
+       # b$data
+
+
+
+
+
+      #coro::loop(for (b in valid.dl) {
+        #Out <- model(b$data$to(dtype = torch_float()))
+        Out <- model(b$data)
         # numeric
         if (length(pre.obj$num) > 0) {
           num.cost <- vector("list", length = length(pre.obj$num))
@@ -387,7 +496,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
             total.num.cost <- do.call(sum, num.cost)
           }
         } else {
-          total.num.cost <- 0
+          total.num.cost <- torch_zeros(1)
         }
 
 
@@ -415,7 +524,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
             total.bin.cost <- do.call(sum, bin.cost)
           }
         } else {
-          total.bin.cost <- 0
+          total.bin.cost <- torch_zeros(1)
         }
 
 
@@ -444,7 +553,7 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
             total.multi.cost <- do.call(sum, multi.cost)
           }
         } else {
-          total.multi.cost <- 0
+          total.multi.cost <- torch_zeros(1)
         }
 
 
@@ -455,7 +564,8 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
 
         batch.loss <- cost$item()
         valid.loss <- valid.loss + batch.loss
-      })
+      #})
+      }
     }
 
     #each epoch
@@ -499,18 +609,19 @@ midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm
   model$eval()
 
   # The whole dataset
-  eval_dl <- torch::dataloader(dataset = torch.data, batch_size = n.samples, shuffle = FALSE)
+ # eval_dl <- torch::dataloader(dataset = torch.data, batch_size = n.samples, shuffle = FALSE)
 
 
-  wholebatch <- eval_dl %>%
-    torch::dataloader_make_iter() %>%
-    torch::dataloader_next()
+  #wholebatch <- eval_dl %>%
+    #torch::dataloader_make_iter() %>%
+    #torch::dataloader_next()
 
 
 
 
   for (i in seq_len(m)) {
-    output.data <- model(wholebatch$data)$to(device = "cpu")
+    #output.data <- model(wholebatch$data)$to(device = "cpu")   $to(dtype = torch_float())
+    output.data <- model(torch.data)$to(device = "cpu")
     imp.data <- postprocess(output.data = output.data, pre.obj = pre.obj, scaler = scaler)
 
     if (isFALSE(save.model)) {

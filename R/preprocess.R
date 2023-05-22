@@ -60,7 +60,7 @@ preprocess <- function(data, scaler, device="cpu") {
         colsd <- num.obj$colsd
       }
     } else {
-      # don't scale numeric data
+      # don't scale numeric data:  scaler="none"
 
       num.tibble <- dplyr::mutate_all(data[, num], ~ ifelse(is.na(.), median(., na.rm = TRUE), .))
       num.mat <- as.matrix(num.tibble)
@@ -71,11 +71,29 @@ preprocess <- function(data, scaler, device="cpu") {
     num.idx <- vector("list", length = length(num))
     names(num.idx) <- num
 
-    if (!is.null(num)) {
+    #if (!is.null(num)) {
+      #for (i in seq_along(num)) {
+       # num.idx[i] <- i
+      #}
+   # }
+
       for (i in seq_along(num)) {
         num.idx[i] <- i
       }
-    }
+
+
+
+
+  }else{
+    #no numeric data
+    num.idx <- NULL
+    colmin <- NULL
+    colmax <- NULL
+    colmean <- NULL
+    colsd <- NULL
+    decile1 <- NULL
+    decile9 <- NULL
+
   }
 
 
@@ -83,11 +101,12 @@ preprocess <- function(data, scaler, device="cpu") {
 
 
 
-  # if categorical data exists
+
   ## one-hot categorical data
   cat.names <- c(bin, multi)
 
   if (length(cat.names) >= 1) {
+    # if categorical data exists
     if (data.table::is.data.table(data)) {
       cat.mat <- data[, cat.names, with = FALSE]
     } else {
@@ -128,23 +147,28 @@ preprocess <- function(data, scaler, device="cpu") {
     names(multi.idx) <- multi
 
 
+    bin.start <- length(num.idx) + 1
 
-    if (!is.null(bin)) {
-      bin.start <- length(num.idx) + 1
+    if (length(bin)>=1) {
       for (var in bin) {
         bin.idx[[var]] <- bin.start:(bin.start + 1)
         bin.start <- bin.start + 2
       }
+    }else{
+      bin.idx <- NULL
+
     }
 
 
-    if (!is.null(multi)) {
+    if (length(multi)>=1) {
       multi.start <- bin.start
       for (var in multi) {
         n.levels <- N.levels[var]
         multi.idx[[var]] <- multi.start:(multi.start + n.levels - 1)
         multi.start <- multi.start + n.levels
       }
+    }else{
+      multi.idx <-NULL
     }
 
     # levels for each categorical variables
@@ -166,7 +190,16 @@ preprocess <- function(data, scaler, device="cpu") {
 
     # combine numeric data with one-hot encoded categorical variables
     cat.tensor <- torch::torch_cat(cat.list, dim = 2)
-    data.tensor <- torch::torch_cat(list(num.tensor, cat.tensor), dim = 2)
+
+    if(!is.null(num.idx)){
+      data.tensor <- torch::torch_cat(list(num.tensor, cat.tensor), dim = 2)
+    }else{
+      data.tensor <-cat.tensor
+    }
+
+
+
+
   } else {
     # only numeric
     data.tensor <- num.tensor

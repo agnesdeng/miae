@@ -14,6 +14,7 @@ midae(
   pmm.save.vars = NULL,
   epochs = 5,
   batch.size = 32,
+  drop.last = FALSE,
   subsample = 1,
   shuffle = TRUE,
   input.dropout = 0.2,
@@ -24,12 +25,13 @@ midae(
   momentum = 0,
   eps = 1e-07,
   encoder.structure = c(128, 64, 32),
+  latent.dim = 16,
   decoder.structure = c(32, 64, 128),
   act = "elu",
   init.weight = "xavier.normal",
-  scaler = "none",
+  scaler = "standard",
   loss.na.scale = FALSE,
-  early_stopping_epochs = 10,
+  early_stopping_epochs = 1,
   verbose = TRUE,
   print.every.n = 1,
   save.model = FALSE,
@@ -66,6 +68,8 @@ midae(
 
 \item{batch.size}{The size of samples in each batch. Default: 32.}
 
+\item{drop.last}{Whether or not to drop the last batch. Default: FALSE}
+
 \item{subsample}{The subsample ratio of training data. Default: 1.}
 
 \item{shuffle}{Whether or not to shuffle training data. Default: TRUE}
@@ -86,11 +90,13 @@ midae(
 
 \item{encoder.structure}{A vector indicating the structure of encoder. Default: c(128,64,32)}
 
+\item{latent.dim}{The size of latent layer. The default value is 16.}
+
 \item{decoder.structure}{A vector indicating the structure of decoder. Default: c(32,64,128)}
 
 \item{act}{The name of activation function. Can be: "relu", "elu", "leaky.relu", "tanh", "sigmoid" and "identity".}
 
-\item{init.weight}{Techniques for weights initialization. Can be "xavier.uniform" or "kaiming.uniform".}
+\item{init.weight}{Techniques for weights initialization. Can be "xavier.uniform", "xavier.normal" or "xavier.midas" (or "kaiming.uniform")}
 
 \item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".}
 

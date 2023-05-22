@@ -3,7 +3,7 @@ yhatobs_pmm1 <- function(data, na.loc, na.vars, extra.vars, pmm.link,
                          epochs = 5, batch.size = 32,
                          shuffle = TRUE,
                          optimizer = "adamW", learning.rate = 0.0001, weight.decay = 0.002, momentum = 0, eps = 1e-07,
-                         encoder.structure = c(128, 64, 32), decoder.structure = c(32, 64, 128),
+                         encoder.structure = c(128, 64, 32), latent.dim = 16, decoder.structure = c(32, 64, 128),
                          act = "elu", init.weight = "xavier.normal", scaler = "none",
                          loss.na.scale = FALSE,
                          verbose = TRUE, print.every.n = 1) {
@@ -31,8 +31,10 @@ yhatobs_pmm1 <- function(data, na.loc, na.vars, extra.vars, pmm.link,
 
   # use all available data
   train.dl <- torch::dataloader(dataset = torch.data, batch_size = batch.size, shuffle = shuffle)
-  model <- dae(n.features = n.features, input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, decoder.structure = encoder.structure, act = act)
+  model <- dae(n.features = n.features, input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = encoder.structure, act = act)
 
+
+  ## vae??
 
 
   if (init.weight == "xavier.normal") {

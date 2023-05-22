@@ -8,16 +8,17 @@ mivae(
   data,
   m = 5,
   beta = 1,
-  pmm.type = "auto",
+  pmm.type = NULL,
   pmm.k = 5,
   pmm.link = "prob",
   pmm.save.vars = NULL,
   epochs = 5,
   batch.size = 32,
+  drop.last = FALSE,
   subsample = 1,
   shuffle = TRUE,
-  input.dropout = 0.2,
-  hidden.dropout = 0.5,
+  input.dropout = 0,
+  hidden.dropout = 0,
   optimizer = "adamW",
   learning.rate = 1e-04,
   weight.decay = 0.002,
@@ -28,9 +29,9 @@ mivae(
   decoder.structure = c(32, 64, 128),
   act = "elu",
   init.weight = "xavier.normal",
-  scaler = "none",
+  scaler = "standard",
   loss.na.scale = FALSE,
-  early_stopping_epochs = 10,
+  early_stopping_epochs = 1,
   verbose = TRUE,
   print.every.n = 1,
   save.model = FALSE,
@@ -64,6 +65,8 @@ mivae(
 \item{epochs}{The number of training epochs (iterations).}
 
 \item{batch.size}{The size of samples in each batch. Default: 32.}
+
+\item{drop.last}{Whether or not to drop the last batch. Default: FALSE}
 
 \item{subsample}{The subsample ratio of training data. Default: 1.}
 

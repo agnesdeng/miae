@@ -1,6 +1,7 @@
-#' multiple imputation through variational autoencoders with dropout
+#' Multiple imputation through denoising autoencoders with dropout
 #' @param data A data frame, tibble or data table with missing values.
 #' @param m The number of imputed datasets.
+#' @param device Device to use. Either "cpu" or "cuda" for GPU.
 #' @param pmm.type The type of predictive mean matching (PMM). Possible values:
 #' \itemize{
 #'  \item \code{NULL}: Imputations without PMM;
@@ -18,7 +19,6 @@
 #' @param pmm.save.vars The names of variables whose predicted values of observed entries will be saved. Only use for PMM.
 #' @param epochs The number of training epochs (iterations).
 #' @param batch.size The size of samples in each batch. Default: 32.
-#' @param drop.last Whether or not to drop the last batch. Default: FALSE
 #' @param subsample The subsample ratio of training data. Default: 1.
 #' @param shuffle Whether or not to shuffle training data. Default: TRUE
 #' @param input.dropout The dropout probability of the input layer.
@@ -32,7 +32,7 @@
 #' @param latent.dim The size of latent layer. The default value is 16.
 #' @param decoder.structure A vector indicating the structure of decoder. Default: c(32,64,128)
 #' @param act The name of activation function. Can be: "relu", "elu", "leaky.relu", "tanh", "sigmoid" and "identity".
-#' @param init.weight Techniques for weights initialization. Can be "xavier.uniform" or "kaiming.uniform".
+#' @param init.weight Techniques for weights initialization. Can be "xavier.uniform", "xavier.normal" or "xavier.midas" (or "kaiming.uniform")
 #' @param scaler The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".
 #' @param loss.na.scale Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.
 #' @param early_stopping_epochs An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.
@@ -45,54 +45,49 @@
 #' @export
 #' @examples
 #' withNA.df <- createNA(data = iris, p = 0.2)
-#' imputed.data <- mivae(data = withNA.df, m = 5, epochs = 5, path = file.path(tempdir(), "mivaemodel.pt"))
-mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL,
-                  epochs = 5, batch.size = 32, drop.last = FALSE,
+#' imputed.data <- midae(data = withNA.df, m = 5, epochs = 5, path = file.path(tempdir(), "midaemodel.pt"))
+midae <- function(data, m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL,
+                  epochs = 5, batch.size = 32,
                   subsample = 1, shuffle = TRUE,
-                  input.dropout = 0, hidden.dropout = 0,
+                  input.dropout = 0.2, hidden.dropout = 0.5,
                   optimizer = "adamW", learning.rate = 0.0001, weight.decay = 0.002, momentum = 0, eps = 1e-07,
                   encoder.structure = c(128, 64, 32), latent.dim = 16, decoder.structure = c(32, 64, 128),
-                  act = "elu", init.weight = "xavier.normal", scaler = "standard",
+                  act = "elu", init.weight = "xavier.normal", scaler = "none",
                   loss.na.scale = FALSE,
                   early_stopping_epochs = 1,
                   verbose = TRUE, print.every.n = 1, save.model = FALSE, path = NULL) {
 
-  if (subsample == 1 & early_stopping_epochs > 1) {
+  device <- torch_device(device)
+
+  if(subsample == 1 & early_stopping_epochs>1){
     stop("To use early stopping based on validation error, please set subsample < 1.")
   }
 
+  #if (save.model & is.null(path)) {
+  #  stop("Please specify a path to save the imputation model.")
+  # }
 
   # save.model & is.null(path)
   if (is.null(path)) {
     stop("Please specify a path to save the imputation model.")
   }
 
+
   # check pmm.save.vars #included in colnames of data
   origin.names <- colnames(data)
-
   if (!all(pmm.save.vars %in% origin.names)) {
     stop("Some variables specified in `pmm.save.vars` do not exist in the dataset. Please check again.")
   }
 
 
-  pre.obj <- preprocess(data, scaler = scaler)
+  pre.obj <- preprocess(data, scaler = scaler, device = device)
 
- # torch.data <- torch_dataset(data, scaler = scaler)
-
-
-  #n.features <- torch.data$.ncol()
-
-  #n.samples <- torch.data$.length()
-
-  torch.data<-pre.obj$data.tensor
-  if(!torch_is_floating_point(torch.data)){
-    torch.data<-torch.data$to(dtype=torch_float())
-  }
+  torch.data <- torch_dataset(data, scaler = scaler, device = device)
 
 
-  n.features <- torch.data$size()[[2]]
+  n.features <- torch.data$.ncol()
 
-  n.samples <- torch.data$size()[[1]]
+  n.samples <- torch.data$.length()
 
 
   # check pmm
@@ -170,50 +165,34 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
 
   if (subsample == 1) {
     # use all available data
-    #train.dl <- torch::dataloader(dataset = torch.data, batch_size = batch.size, shuffle = shuffle)
-    #train.num.batches <- length(train.dl)
-    train.samples<-n.samples
-    train.idx <- 1:n.samples
-    batches<-batch_set(n.samples = train.samples, batch.size = batch.size, drop.last = drop.last)
-    batch.set<-batches$batch.set
-    train.num.batches<-batches$num.batches
-    train.torch.data<-torch.data
+    train.dl <- torch::dataloader(dataset = torch.data, batch_size = batch.size, shuffle = shuffle,  drop_last = FALSE)
+    train.num.batches <- length(train.dl)
+    #test
+    #iter<-train.dl$.iter()
+    # b<-iter$.next()
+    # b
 
-
-
+    #
   } else {
     train.idx <- sample(1:n.samples, size = floor(subsample * n.samples), replace = FALSE)
     valid.idx <- setdiff(1:n.samples, train.idx)
 
-   # train.ds <- torch_dataset_idx(data = data, idx = train.idx, scaler = scaler)
-   # valid.ds <- torch_dataset_idx(data = data, idx = valid.idx, scaler = scaler)
+    train.ds <- torch_dataset_idx(data = data, idx = train.idx, scaler = scaler)
+    valid.ds <- torch_dataset_idx(data = data, idx = valid.idx, scaler = scaler)
 
-   # train.dl <- dataloader(dataset = train.ds, batch_size = batch.size, shuffle = shuffle)
-   # valid.dl <- dataloader(dataset = valid.ds, batch_size = batch.size, shuffle = FALSE)
-
-   # train.num.batches <- length(train.dl)
-   # valid.num.batches <- length(valid.dl)
-    train.samples <- length(train.idx)
-    valid.samples <- length(valid.idx)
-
-    train.torch.data<-torch.data[train.idx,]
-    valid.torch.data<-torch.data[valid.idx,]
-
-    batches<-batch_set(n.samples = train.samples, batch.size = batch.size, drop.last = drop.last)
-    batch.set<-batches$batch.set
-    train.num.batches<-batches$num.batches
+    train.dl <- dataloader(dataset = train.ds, batch_size = batch.size, shuffle = shuffle,  drop_last = FALSE)
+    valid.dl <- dataloader(dataset = valid.ds, batch_size = batch.size, shuffle = shuffle,  drop_last = FALSE)
 
 
-    valid.batches<-batch_set(n.samples = valid.samples, batch.size = batch.size, drop.last = drop.last)
-    valid.batch.set<-valid.batches$batch.set
-    valid.num.batches<-valid.batches$num.batches
+    train.num.batches <- length(train.dl)
+    valid.num.batches <- length(valid.dl)
+
+
   }
 
 
-  # mivae model -------------------------------------------------------------
+  model <- dae(n.features = n.features, input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure, act = act)$to(device = device)
 
-
-  model <- vae(n.features = n.features, input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure, act = act)
 
 
   if (init.weight == "xavier.normal") {
@@ -226,10 +205,7 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
 
 
 
-  # mivae loss -------------------------------------------------------------------
-
-
-  # define the loss function
+  # define the loss function for different variables
   num_loss <- torch::nn_mse_loss(reduction = "mean")
   bin_loss <- torch::nn_bce_with_logits_loss(reduction = "mean")
   multi_loss <- torch::nn_cross_entropy_loss(reduction = "mean")
@@ -257,30 +233,22 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
 
     train.loss <- 0
 
-    #### test only
-    # b <- train.dl %>%
+
+
+    # test only
+
+
+
+    # b<- train.dl %>%
     # torch::dataloader_make_iter() %>%
     # torch::dataloader_next()
+    ####
+
+    coro::loop(for (b in train.dl) { # loop over all batches in each epoch
 
 
-    # coro::loop(for (b in train.dl) { # loop over all batches in each epoch
-    #rearrange all the data in each epoch
-    permute<-torch::torch_randperm(train.samples)+1L
 
-    train.data<-train.torch.data[permute]
-
-    for(i in 1:train.num.batches){
-      b<-list()
-      b.index<-batch.set[[i]]
-
-      b$data<-train.data[b.index]
-
-      #index in original full data
-      #b$index<-permute[b.index]
-      b$index<-train.idx[as.array(permute)[b.index]]
-
-
-      Out <- model(b$data)
+      Out <- model(b$data$to(device = device))
 
       # numeric
       if (length(pre.obj$num) > 0) {
@@ -288,10 +256,9 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
         names(num.cost) <- pre.obj$num
 
         for (var in pre.obj$num) {
-          obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-          num.cost[[var]] <- num_loss(input = Out$reconstrx[obs.idx, pre.obj$num.idx[[var]]], target = b$data[obs.idx, pre.obj$num.idx[[var]]])
+          obs.idx <- which(pre.obj$na.loc[as.array(b$index$to(device = device)), var] != TRUE)
+          num.cost[[var]] <- num_loss(input = Out[obs.idx, pre.obj$num.idx[[var]]], target = b$data[obs.idx, pre.obj$num.idx[[var]]]$to(device = device))$to(device = "cpu")
         }
-
 
         if (loss.na.scale) {
           if (length(pre.obj$num) > 1) {
@@ -307,7 +274,7 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
           total.num.cost <- do.call(sum, num.cost)
         }
       } else {
-        total.num.cost <- torch_zeros(1)
+        total.num.cost <- 0
       }
 
 
@@ -320,8 +287,8 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
         names(bin.cost) <- pre.obj$bin
 
         for (var in pre.obj$bin) {
-          obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-          bin.cost[[var]] <- bin_loss(input = Out$reconstrx[obs.idx, pre.obj$bin.idx[[var]]], target = b$data[obs.idx, pre.obj$bin.idx[[var]]])
+          obs.idx <- which(pre.obj$na.loc[as.array(b$index$to(device = device)), var] != TRUE)
+          bin.cost[[var]] <- bin_loss(input = Out[obs.idx, pre.obj$bin.idx[[var]]], target = b$data[obs.idx, pre.obj$bin.idx[[var]]]$to(device = device))$to(device = "cpu")
         }
 
         if (loss.na.scale) {
@@ -338,7 +305,7 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
           total.bin.cost <- do.call(sum, bin.cost)
         }
       } else {
-        total.bin.cost <- torch_zeros(1)
+        total.bin.cost <- 0
       }
 
 
@@ -350,8 +317,8 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
         names(multi.cost) <- pre.obj$multi
 
         for (var in pre.obj$multi) {
-          obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-          multi.cost[[var]] <- multi_loss(input = Out$reconstrx[obs.idx, pre.obj$multi.idx[[var]]], target = torch::torch_argmax(b$data[obs.idx, pre.obj$multi.idx[[var]]], dim = 2))
+          obs.idx <- which(pre.obj$na.loc[as.array(b$index$to(device = device)), var] != TRUE)
+          multi.cost[[var]] <- multi_loss(input = Out[obs.idx, pre.obj$multi.idx[[var]]], target = torch::torch_argmax(b$data[obs.idx, pre.obj$multi.idx[[var]]]$to(device = device), dim = 2))$to(device = "cpu")
         }
 
 
@@ -369,39 +336,30 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
           total.multi.cost <- do.call(sum, multi.cost)
         }
       } else {
-        total.multi.cost <- torch_zeros(1)
+        total.multi.cost <- 0
       }
 
 
 
-      # Total cost (reconstruction loss)
+      # Total cost
       cost <- sum(total.num.cost, total.bin.cost, total.multi.cost)
-
-
-      # KL ----------------------------------------------------------------------
-      mu <- Out$mu
-      log.var <- Out$log.var
-
-      # KL divergence
-      # the mean of a batch for the sum of kld the latent dimensions
-      kl.divergence <- torch_mean(-0.5 * torch_sum(1 + log.var - mu^2 - log.var$exp(), dim = 2))
-
-      total.cost <- cost + beta * kl.divergence
-
-
-
 
       # zero out the gradients
       optimizer$zero_grad()
-      total.cost$backward()
+
+      cost$backward()
+
       # update params
       optimizer$step()
 
 
-      batch.loss <- total.cost$item()
+      batch.loss <- cost$item()
       train.loss <- train.loss + batch.loss
-   # })
-    }
+
+      if (save.model & epoch == epochs) {
+        torch::torch_save(model, path = path)
+      }
+    })
 
 
     ### if subsample<1, show validation error
@@ -411,23 +369,8 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
 
       valid.loss <- 0
 
-      #rearrange all the data in each epoch
-      permute<-torch::torch_randperm(valid.samples)+1L
-
-      valid.data<-valid.torch.data[permute]
       # validation loss
-      for(i in 1:valid.num.batches){
-        b<-list()
-        b.index<-valid.batch.set[[i]]
-
-        b$data<-valid.data[b.index]
-        #index in original full data
-        #b$index<-permute[b.index]
-        b$index<-valid.idx[as.array(permute)[b.index]]
-
-
-      # validation loss
-      #coro::loop(for (b in valid.dl) {
+      coro::loop(for (b in valid.dl) {
         Out <- model(b$data)
 
         # numeric
@@ -437,7 +380,7 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
 
           for (var in pre.obj$num) {
             obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-            num.cost[[var]] <- num_loss(input = Out$reconstrx[obs.idx, pre.obj$num.idx[[var]]], target = b$data[obs.idx, pre.obj$num.idx[[var]]])
+            num.cost[[var]] <- num_loss(input = Out[obs.idx, pre.obj$num.idx[[var]]], target = b$data[obs.idx, pre.obj$num.idx[[var]]])
           }
 
           if (loss.na.scale) {
@@ -454,7 +397,7 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
             total.num.cost <- do.call(sum, num.cost)
           }
         } else {
-          total.num.cost <- torch_zeros(1)
+          total.num.cost <- 0
         }
 
 
@@ -465,7 +408,7 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
 
           for (var in pre.obj$bin) {
             obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-            bin.cost[[var]] <- bin_loss(input = Out$reconstrx[obs.idx, pre.obj$bin.idx[[var]]], target = b$data[obs.idx, pre.obj$bin.idx[[var]]])
+            bin.cost[[var]] <- bin_loss(input = Out[obs.idx, pre.obj$bin.idx[[var]]], target = b$data[obs.idx, pre.obj$bin.idx[[var]]])
           }
 
           if (loss.na.scale) {
@@ -482,7 +425,7 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
             total.bin.cost <- do.call(sum, bin.cost)
           }
         } else {
-          total.bin.cost <- torch_zeros(1)
+          total.bin.cost <- 0
         }
 
 
@@ -494,7 +437,7 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
 
           for (var in pre.obj$multi) {
             obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-            multi.cost[[var]] <- multi_loss(input = Out$reconstrx[obs.idx, pre.obj$multi.idx[[var]]], target = torch::torch_argmax(b$data[obs.idx, pre.obj$multi.idx[[var]]], dim = 2))
+            multi.cost[[var]] <- multi_loss(input = Out[obs.idx, pre.obj$multi.idx[[var]]], target = torch::torch_argmax(b$data[obs.idx, pre.obj$multi.idx[[var]]], dim = 2))
           }
 
           if (loss.na.scale) {
@@ -511,61 +454,42 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
             total.multi.cost <- do.call(sum, multi.cost)
           }
         } else {
-          total.multi.cost <- torch_zeros(1)
+          total.multi.cost <- 0
         }
+
 
 
         # Total cost
         cost <- sum(total.num.cost, total.bin.cost, total.multi.cost)
 
-        # KL divergence
-        mu <- Out$mu
-        log.var <- Out$log.var
-        # the mean of a batch for the sum of kld the latent dimensions
-        kl.divergence <- torch_mean(-0.5 * torch_sum(1 + log.var - mu^2 - log.var$exp(), dim = 2))
 
-        total.cost <- cost + beta * kl.divergence
-
-
-
-
-        # zero out the gradients
-        optimizer$zero_grad()
-        total.cost$backward()
-        # update params
-        optimizer$step()
-
-
-        batch.loss <- total.cost$item()
+        batch.loss <- cost$item()
         valid.loss <- valid.loss + batch.loss
-      #})
-      }
+      })
     }
 
-
-
-    # each epoch
-    if (subsample == 1) {
+    #each epoch
+    if(subsample==1){
       if (verbose & (epoch == 1 | epoch %% print.every.n == 0)) {
         cat(sprintf("Loss at epoch %d: %1f\n", epoch, train.loss / train.num.batches))
       }
       if (save.model & epoch == epochs) {
         torch::torch_save(model, path = path)
       }
-    } else if (subsample < 1) {
+    }else if(subsample<1){
       valid.epoch.loss <- valid.loss / valid.num.batches
       if (verbose & (epoch == 1 | epoch %% print.every.n == 0)) {
-        cat(sprintf("Loss at epoch %d: training: %3f, validation: %3f\n", epoch, train.loss / train.num.batches, valid.epoch.loss))
+        cat(sprintf("Loss at epoch %d: training: %3f, validation: %3f\n", epoch, train.loss / train.num.batches,valid.epoch.loss))
       }
-      if (early_stopping_epochs > 1) {
-        if (valid.epoch.loss < best.loss) {
+      if(early_stopping_epochs >1){
+        if(valid.epoch.loss < best.loss){
           best.loss <- valid.epoch.loss
-          best.epoch <- epoch
+          best.epoch<-epoch
           num.nondecresing.epochs <- 0
           torch::torch_save(model, path = path)
-        } else {
+        }else{
           num.nondecresing.epochs <- num.nondecresing.epochs + 1
-          if (num.nondecresing.epochs >= early_stopping_epochs) {
+          if(num.nondecresing.epochs >= early_stopping_epochs){
             cat(sprintf("Best loss at epoch %d: %1f\n", best.epoch, best.loss))
             break
           }
@@ -574,26 +498,29 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
     }
   }
 
+
   # model <- torch::torch_load(path = path)
   if (subsample < 1 & early_stopping_epochs > 1) {
     model <- torch::torch_load(path = path)
   }
+
+
+  # model <- torch::torch_load(path = path)
   model$eval()
 
   # The whole dataset
- # eval_dl <- torch::dataloader(dataset = torch.data, batch_size = n.samples, shuffle = FALSE)
+  eval_dl <- torch::dataloader(dataset = torch.data, batch_size = n.samples, shuffle = FALSE)
 
 
- # wholebatch <- eval_dl %>%
-    #torch::dataloader_make_iter() %>%
-    #torch::dataloader_next()
+  wholebatch <- eval_dl %>%
+    torch::dataloader_make_iter() %>%
+    torch::dataloader_next()
+
 
 
 
   for (i in seq_len(m)) {
-    #output.list <- model(wholebatch$data)
-    output.list <- model(torch.data)
-    output.data <- output.list$reconstrx
+    output.data <- model(wholebatch$data)$to(device = "cpu")
     imp.data <- postprocess(output.data = output.data, pre.obj = pre.obj, scaler = scaler)
 
     if (isFALSE(save.model)) {
@@ -833,9 +760,9 @@ mivae <- function(data, m = 5, beta = 1, pmm.type = NULL, pmm.k = 5, pmm.link = 
 
 
 
-    mivae.obj <- list("imputed.data" = imputed.data, "model.path" = path, "params" = params)
-    print(paste("The VAE multiple imputation model is saved in ", path))
-    class(mivae.obj) <- "mivaeObj"
-    return(mivae.obj)
+    midae.obj <- list("imputed.data" = imputed.data, "model.path" = path, "params" = params)
+    print(paste("The DAE multiple imputation model is saved in ", path))
+    class(midae.obj) <- "midaeObj"
+    return(midae.obj)
   }
 }
