@@ -3,24 +3,43 @@
 #' @export
 torch_dataset <- torch::dataset(
   name = "torch_dataset",
-  initialize = function(data,scaler,device="cpu") {
-    pre.obj <- preprocess(data,scaler,device)
+  initialize = function(data,scaler,categorical.encoding) {
+    pre.obj <- preprocess(data,scaler,categorical.encoding)
 
-    self$torch.data <- pre.obj$data.tensor
+    #self$torch.data <- pre.obj$data.tensor
+    self$num.tensor<-pre.obj$data.tensor$num.tensor
+    self$logi.tensor<-pre.obj$data.tensor$logi.tensor
+    self$bin.tensor<-pre.obj$data.tensor$bin.tensor
+    self$multi.tensor<-pre.obj$data.tensor$multi.tensor
+    self$onehot.tensor<-pre.obj$data.tensor$onehot.tensor
 
   },
   .getitem = function(index) {
-    data <- self$torch.data[index, ]
-
-    return(list("data"=data,"index"=index))
-
+    #data <- self$torch.data[index, ]
+    num.tensor <- self$num.tensor[index, ]
+    logi.tensor <- self$logi.tensor[index, ]
+    bin.tensor <- self$bin.tensor[index, ]
+    multi.tensor<- self$multi.tensor[index, ]
+    onehot.tensor<- self$onehot.tensor[index, ]
+    return(list("num.tensor"= num.tensor,"logi.tensor"=logi.tensor,"bin.tensor"=bin.tensor,"multi.tensor"=multi.tensor,"onehot.tensor"= onehot.tensor))
   },
   .length = function() {
-    self$torch.data$size()[[1]]
-  },
-  .ncol = function() {
-    self$torch.data$size()[[2]]
+
+    if(!is.null(self$num.tensor)){
+      dim(self$num.tensor)[1]
+    }else if(!is.null(self$logi.tensor)){
+      dim(self$logi.tensor)[1]
+    }else if(!is.null(self$bin.tensor)){
+      dim(self$bin.tensor)[1]
+    }else{
+      dim(self$multi.tensor)[1]
+    }
+
   }
+  #,
+  # .ncol = function() {
+  #   self$torch.data$size()[[2]]
+  # }
 )
 
 
@@ -29,22 +48,38 @@ torch_dataset <- torch::dataset(
 #' @export
 torch_dataset_idx <- torch::dataset(
   name = "torch_dataset",
-  initialize = function(data,idx,scaler,device="cpu") {
-    pre.obj <- preprocess(data[idx,],scaler,device)
-
-    self$torch.data <- pre.obj$data.tensor
-
+  initialize = function(data,idx,scaler,categorical.encoding) {
+    pre.obj <- preprocess(data[idx,],scaler,categorical.encoding)
+    self$num.tensor<-pre.obj$data.tensor$num.tensor
+    self$logi.tensor<-pre.obj$data.tensor$logi.tensor
+    self$bin.tensor<-pre.obj$data.tensor$bin.tensor
+    self$multi.tensor<-pre.obj$data.tensor$multi.tensor
+    self$onehot.tensor<-pre.obj$data.tensor$onehot.tensor
   },
   .getitem = function(index) {
-    data <- self$torch.data[index, ]
-
-    return(list("data"=data,"index"=index))
-
+    #data <- self$torch.data[index, ]
+    num.tensor <- self$num.tensor[index, ]
+    logi.tensor <- self$logi.tensor[index, ]
+    bin.tensor <- self$bin.tensor[index, ]
+    multi.tensor<- self$multi.tensor[index, ]
+    onehot.tensor<- self$onehot.tensor[index, ]
+    return(list("num.tensor"= num.tensor,"logi.tensor"=logi.tensor,"bin.tensor"=bin.tensor,"multi.tensor"=multi.tensor,"onehot.tensor"= onehot.tensor))
   },
   .length = function() {
-    self$torch.data$size()[[1]]
-  },
-  .ncol = function() {
-    self$torch.data$size()[[2]]
+
+    if(!is.null(self$num.tensor)){
+      dim(self$num.tensor)[1]
+    }else if(!is.null(self$logi.tensor)){
+      dim(self$logi.tensor)[1]
+    }else if(!is.null(self$bin.tensor)){
+      dim(self$bin.tensor)[1]
+    }else{
+      dim(self$multi.tensor)[1]
+    }
+
   }
+  #,
+  #.ncol = function() {
+  #  self$torch.data$size()[[2]]
+  # }
 )

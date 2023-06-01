@@ -5,7 +5,10 @@
 \title{Modules for denoising autoencoders}
 \usage{
 dae(
-  n.features,
+  categorical.encoding,
+  n.others,
+  cardinalities,
+  embedding.dim,
   input.dropout,
   hidden.dropout,
   encoder.structure,

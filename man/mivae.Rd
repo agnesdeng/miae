@@ -8,6 +8,8 @@ mivae(
   data,
   m = 5,
   beta = 1,
+  categorical.encoding = "embeddings",
+  device = "cpu",
   pmm.type = NULL,
   pmm.k = 5,
   pmm.link = "prob",
@@ -30,8 +32,8 @@ mivae(
   act = "elu",
   init.weight = "xavier.normal",
   scaler = "standard",
+  early.stopping.epochs = 1,
   loss.na.scale = FALSE,
-  early_stopping_epochs = 1,
   verbose = TRUE,
   print.every.n = 1,
   save.model = FALSE,
@@ -42,6 +44,12 @@ mivae(
 \item{data}{A data frame, tibble or data table with missing values.}
 
 \item{m}{The number of imputed datasets.}
+
+\item{beta}{A regularized parameter. Default: 1.}
+
+\item{categorical.encoding}{The method for representing multi-class categorical features. Can be either "embeddings" or "onehot".}
+
+\item{device}{Device to use. Either "cpu" or "cuda" for GPU.}
 
 \item{pmm.type}{The type of predictive mean matching (PMM). Possible values:
 \itemize{
@@ -98,9 +106,9 @@ mivae(
 
 \item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".}
 
-\item{loss.na.scale}{Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.}
+\item{early.stopping.epochs}{An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.}
 
-\item{early_stopping_epochs}{An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.}
+\item{loss.na.scale}{Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.}
 
 \item{verbose}{Whether or not to print training loss information. Default: TRUE.}
 

@@ -1,10 +1,11 @@
-# A function use to obtain yhatobs using the whole dataset (use for pmm.type=1)
-yhatobs_pmm1 <- function(data, na.loc, na.vars, extra.vars, pmm.link,
-                         epochs = 5, batch.size = 32,
+# A function use to obtain yhatobs using the whole dataset (use for pmm.type=1) (Note, mivae doesn't need pmm, just included for research purpose)
+yhatobs_pmm1 <- function(module="dae", data, categorical.encoding, device,
+                         na.loc, na.vars, extra.vars, pmm.link,
+                         epochs = 5, batch.size = 32, drop.last,
                          shuffle = TRUE,
                          optimizer = "adamW", learning.rate = 0.0001, weight.decay = 0.002, momentum = 0, eps = 1e-07,
                          encoder.structure = c(128, 64, 32), latent.dim = 16, decoder.structure = c(32, 64, 128),
-                         act = "elu", init.weight = "xavier.normal", scaler = "none",
+                         act = "elu", init.weight = "xavier.normal", scaler = "standard",
                          loss.na.scale = FALSE,
                          verbose = TRUE, print.every.n = 1) {
   # param xgb.params NULL if XGBmodels was fed in
@@ -20,21 +21,49 @@ yhatobs_pmm1 <- function(data, na.loc, na.vars, extra.vars, pmm.link,
   hidden.dropout <- 0
 
 
-  pre.obj <- preprocess(data, scaler = scaler)
+  pre.obj <- preprocess(data, scaler = scaler, categorical.encoding = categorical.encoding)
+  cardinalities<-pre.obj$cardinalities
+  embedding.dim<-pre.obj$embedding.dim
 
-  torch.data <- torch_dataset(data, scaler = scaler)
+  #n.num+n.logi+n.bin
+  origin.names <- colnames(data)
+  n.others <- length(origin.names)-length(cardinalities)
 
 
-  n.features <- torch.data$.ncol()
+  #torch.data <- torch_dataset(data, scaler = scaler)
+  data.tensor<-torch_dataset(data, scaler = scaler, categorical.encoding = categorical.encoding)
 
-  n.samples <- torch.data$.length()
+  #n.features <- torch.data$.ncol()
+
+  n.samples <- nrow(data)
 
   # use all available data
-  train.dl <- torch::dataloader(dataset = torch.data, batch_size = batch.size, shuffle = shuffle)
-  model <- dae(n.features = n.features, input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = encoder.structure, act = act)
+  #train.dl <- torch::dataloader(dataset = torch.data, batch_size = batch.size, shuffle = shuffle)
+
+  train.samples <- n.samples
+  train.idx <- 1:n.samples
+  #train.idx<-sample(1:n.samples, size = n.samples, replace = FALSE)
+  train.batches<-batch_set(n.samples = train.samples, batch.size = batch.size, drop.last = drop.last)
+  train.batch.set<-train.batches$batch.set
+  train.num.batches<-train.batches$num.batches
+  #data.tensor<-torch_dataset(data, scaler = scaler, device = device)
+  train.original.data<-data.tensor
+
+  # model <- dae(n.features = n.features, input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = encoder.structure, act = act)
 
 
-  ## vae??
+  if(module=="dae"){
+    #mivae doesn't need pmm
+    model <- dae(categorical.encoding = categorical.encoding, n.others = n.others, cardinalities = cardinalities, embedding.dim = embedding.dim,
+                 input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure, act = act)$to(device = device)
+
+  }else{
+    model <- vae(categorical.encoding = categorical.encoding, n.others = n.others, cardinalities = cardinalities, embedding.dim = embedding.dim,
+                 input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure, act = act)
+
+  }
+  model <-model$to(device=device)
+
 
 
   if (init.weight == "xavier.normal") {
@@ -49,6 +78,7 @@ yhatobs_pmm1 <- function(data, na.loc, na.vars, extra.vars, pmm.link,
 
   # define the loss function for different variables
   num_loss <- torch::nn_mse_loss(reduction = "mean")
+  logi_loss <- torch::nn_bce_with_logits_loss(reduction = "mean")
   bin_loss <- torch::nn_bce_with_logits_loss(reduction = "mean")
   multi_loss <- torch::nn_cross_entropy_loss(reduction = "mean")
 
@@ -66,28 +96,67 @@ yhatobs_pmm1 <- function(data, na.loc, na.vars, extra.vars, pmm.link,
 
 
   # epochs: number of iterations
+  if(verbose){
+    print("Running midae for obtaining yhatobs when pmm.type = 1. Note that in this run, subsample = 1, and no dropout applied.")
+  }
+
+
+
 
   for (epoch in seq_len(epochs)) {
     model$train()
 
     train.loss <- 0
 
+    #rearrange all the data in each epoch
+    if(shuffle){
+      permute<-torch::torch_randperm(train.samples)+1L
 
-    coro::loop(for (b in train.dl) { # loop over all batches in each epoch
+    }else{
+      permute<-torch_tensor(1:train.samples)
+    }
 
-      Out <- model(b$data)
+    train.data<-train.original.data[permute]
+
+
+    for(i in 1:train.num.batches){
+
+      b<-list()
+      b.index<-train.batch.set[[i]]
+
+      b$data<-lapply(train.data, function(x) x[b.index])
+      #index in original full data
+      b$index<-train.idx[as.array(permute)[b.index]]
+
+      num.tensor<-move_to_device(tensor=b$data$num.tensor, device=device)
+      logi.tensor<-move_to_device(tensor=b$data$logi.tensor, device=device)
+      bin.tensor<-move_to_device(tensor=b$data$bin.tensor, device=device)
+      multi.tensor<-move_to_device(tensor=b$data$multi.tensor, device=device)
+      onehot.tensor<-move_to_device(tensor=b$data$onehot.tensor, device=device)
+
+      if(categorical.encoding=="embeddings"){
+        Out <- model(num.tensor=num.tensor,logi.tensor=logi.tensor,bin.tensor=bin.tensor, cat.tensor=multi.tensor)
+      }else if(categorical.encoding=="onehot"){
+        Out <- model(num.tensor=num.tensor,logi.tensor=logi.tensor,bin.tensor=bin.tensor, cat.tensor=onehot.tensor)
+      }else{
+        stop(cat('categorical.encoding can only be either "embeddings" or "onehot".\n'))
+      }
+
+
+      if(module=="vae"){
+        Out<-Out$reconstrx
+      }
 
       # numeric
-      if(length(pre.obj$num)>0){
+      if (length(pre.obj$num) > 0) {
         num.cost <- vector("list", length = length(pre.obj$num))
         names(num.cost) <- pre.obj$num
 
-        for (var in pre.obj$num) {
+        for (idx in seq_along(pre.obj$num.idx)) {
+          var<-pre.obj$num[idx]
           obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-          num.cost[[var]] <- num_loss(input = Out[obs.idx, pre.obj$num.idx[[var]]], target = b$data[obs.idx, pre.obj$num.idx[[var]]])
+          num.cost[[var]] <- num_loss(input = Out[obs.idx, pre.obj$num.idx[[var]]], target = num.tensor[obs.idx, idx])
         }
-
-
 
         if (loss.na.scale) {
           if (length(pre.obj$num) > 1) {
@@ -102,18 +171,54 @@ yhatobs_pmm1 <- function(data, na.loc, na.vars, extra.vars, pmm.link,
         } else {
           total.num.cost <- do.call(sum, num.cost)
         }
-      }else{
-        total.num.cost <- 0
+      } else {
+        total.num.cost <- torch_zeros(1)
       }
 
+      # logical
+      if (length(pre.obj$logi) > 0) {
+        logi.cost <- vector("list", length = length(pre.obj$logi))
+        names(logi.cost) <- pre.obj$logi
+
+        for (idx in seq_along(pre.obj$logi)) {
+          var<-pre.obj$logi[idx]
+          obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
+          logi.cost[[var]] <- logi_loss(input = Out[obs.idx, pre.obj$logi.idx[[var]]], target = logi.tensor[obs.idx, idx])
+        }
+
+
+        if (loss.na.scale) {
+          if (length(pre.obj$logi) > 1) {
+            na.ratios <- colMeans(pre.obj$na.loc[, pre.obj$logi])
+            logi.cost <- mapply(`*`, logi.cost, na.ratios)
+            total.logi.cost <- do.call(sum, logi.cost)
+          } else {
+            na.ratio <- mean(pre.obj$na.loc[, pre.obj$logi])
+            logi.cost <- torch_mul(logi.cost[[1]], na.ratio)
+            total.logi.cost <- logi.cost
+          }
+        } else {
+          total.logi.cost <- do.call(sum, logi.cost)
+        }
+      } else {
+        total.logi.cost <- torch_zeros(1)
+      }
+
+
+
+
+
+
       # binary
-      if(length(pre.obj$bin)>0){
+      if (length(pre.obj$bin) > 0) {
         bin.cost <- vector("list", length = length(pre.obj$bin))
         names(bin.cost) <- pre.obj$bin
 
-        for (var in pre.obj$bin) {
+
+        for (idx in seq_along(pre.obj$bin)) {
+          var<-pre.obj$bin[idx]
           obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-          bin.cost[[var]] <- bin_loss(input = Out[obs.idx, pre.obj$bin.idx[[var]]], target = b$data[obs.idx, pre.obj$bin.idx[[var]]])
+          bin.cost[[var]] <- bin_loss(input = Out[obs.idx, pre.obj$bin.idx[[var]]], target = bin.tensor[obs.idx, idx])
         }
 
         if (loss.na.scale) {
@@ -129,25 +234,32 @@ yhatobs_pmm1 <- function(data, na.loc, na.vars, extra.vars, pmm.link,
         } else {
           total.bin.cost <- do.call(sum, bin.cost)
         }
-      }else{
-        total.bin.cost <- 0
+      } else {
+        total.bin.cost <- torch_zeros(1)
       }
 
 
 
+
       # multiclass
-      if(length(pre.obj$multi)>0){
+      if (length(pre.obj$multi) > 0) {
         multi.cost <- vector("list", length = length(pre.obj$multi))
         names(multi.cost) <- pre.obj$multi
 
-        for (var in pre.obj$multi) {
+
+
+        for (idx in seq_along(pre.obj$multi)) {
+          var<-pre.obj$multi[idx]
           obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-          multi.cost[[var]] <- multi_loss(input = Out[obs.idx, pre.obj$multi.idx[[var]]], target = torch::torch_argmax(b$data[obs.idx, pre.obj$multi.idx[[var]]], dim = 2))
+          #which(pre.obj$na.loc[as.array(b$index), var] == TRUE)
+          multi.cost[[var]] <- multi_loss(input = Out[obs.idx, pre.obj$multi.idx[[var]]], target = multi.tensor[obs.idx, idx])
         }
+
 
         if (loss.na.scale) {
           if (length(pre.obj$multi) > 1) {
             na.ratios <- colMeans(pre.obj$na.loc[, pre.obj$multi])
+            #if a column is fully observed, the contribute loss is zero. ..may not be ideal
             multi.cost <- mapply(`*`, multi.cost, na.ratios)
             total.multi.cost <- do.call(sum, multi.cost)
           } else {
@@ -158,9 +270,13 @@ yhatobs_pmm1 <- function(data, na.loc, na.vars, extra.vars, pmm.link,
         } else {
           total.multi.cost <- do.call(sum, multi.cost)
         }
-      }else{
-        total.multi.cost <- 0
+      } else {
+        total.multi.cost <- torch_zeros(1)
       }
+
+
+
+
 
       # Total cost
       cost <- sum(total.num.cost, total.bin.cost, total.multi.cost)
@@ -176,23 +292,59 @@ yhatobs_pmm1 <- function(data, na.loc, na.vars, extra.vars, pmm.link,
 
       batch.loss <- cost$item()
       train.loss <- train.loss + batch.loss
-    })
-  }
 
+
+    }
+
+
+    #each epoch
+
+      if (verbose & (epoch == 1 | epoch %% print.every.n == 0)) {
+        cat(sprintf("Loss at epoch %d: %1f\n", epoch, train.loss / train.num.batches))
+      }
+
+
+}
 
   model$eval()
 
+
+
   # The whole dataset
-  eval_dl <- torch::dataloader(dataset = torch.data, batch_size = n.samples, shuffle = FALSE)
+  #eval_dl <- torch::dataloader(dataset = torch.data, batch_size = n.samples, shuffle = FALSE)
 
 
-  wholebatch <- eval_dl %>%
-    torch::dataloader_make_iter() %>%
-    torch::dataloader_next()
+  #wholebatch <- eval_dl %>%
+    #torch::dataloader_make_iter() %>%
+   # torch::dataloader_next()
 
   # imputed data
 
-  output.data <- model(wholebatch$data)
+  #output.data <- model(wholebatch$data)
+  #output.data <- model(data.tensor$num.tensor$to(device = device),data.tensor$logi.tensor$to(device = device),data.tensor$bin.tensor$to(device = device),data.tensor$multi.tensor$to(device = device))
+
+
+
+  num.tensor<-move_to_device(tensor=data.tensor$num.tensor, device=device)
+  logi.tensor<-move_to_device(tensor=data.tensor$logi.tensor, device=device)
+  bin.tensor<-move_to_device(tensor=data.tensor$bin.tensor, device=device)
+  multi.tensor<-move_to_device(tensor=data.tensor$multi.tensor, device=device)
+  onehot.tensor<-move_to_device(tensor=data.tensor$onehot.tensor, device=device)
+
+  if(categorical.encoding=="embeddings"){
+    Out <- model(num.tensor=num.tensor,logi.tensor=logi.tensor,bin.tensor=bin.tensor, cat.tensor=multi.tensor)
+  }else if(categorical.encoding=="onehot"){
+    Out <- model(num.tensor=num.tensor,logi.tensor=logi.tensor,bin.tensor=bin.tensor, cat.tensor=onehot.tensor)
+  }else{
+    stop(cat('categorical.encoding can only be either "embeddings" or "onehot".\n'))
+  }
+
+  if(module=="vae"){
+    Out<-Out$reconstrx
+  }
+
+  output.data <- Out$to(device = "cpu")
+
   imp.data <- postprocess(output.data = output.data, pre.obj = pre.obj, scaler = scaler)
   #
 
@@ -251,11 +403,6 @@ yhatobs_pmm1 <- function(data, na.loc, na.vars, extra.vars, pmm.link,
       }
     }
   }
-
-
-
-
-
 
 
   return(yhatobs.list)

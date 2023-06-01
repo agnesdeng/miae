@@ -3,30 +3,79 @@
 #' @param pre.obj preprocess data object
 #' @export
 postprocess <- function(output.data, pre.obj, scaler) {
-  # reverse onehot categorical features
-  if (length(pre.obj$cat.names) >= 1) {
-    imp.data <- rev_onehot(onehot.data = output.data, pre.obj = pre.obj)
+
+
+  if (length(pre.obj$num) >= 1) {
+    imp.m <- as_array(output.data[, 1:length(pre.obj$num)])
   } else {
-    # imp.data <- output.data
-    imp.data <- as_array(output.data[, 1:length(pre.obj$num)])
-    colnames(imp.data) <- pre.obj$num
+    imp.m <- NULL
   }
 
 
-  # unscaled numeric features
-  if (length(pre.obj$num) >= 1 & scaler != "none") {
-    if (scaler == "minmax") {
-      imp.data <- rev_minmax_scaler(scaled.data = imp.data, num.names = pre.obj$num, colmin = pre.obj$colmin, colmax = pre.obj$colmax)
-    } else if (scaler == "decile") {
-      imp.data <- rev_decile_scaler(scaled.data = imp.data, num.names = pre.obj$num, decile1 = pre.obj$decile1, decile9 = pre.obj$decile9)
-    } else if (scaler == "standard") {
-      imp.data <- rev_standard_scaler(scaled.data = imp.data, num.names = pre.obj$num, colmean = pre.obj$colmean, colsd = pre.obj$colsd)
+  if (length(pre.obj$logi) >= 1) {
+    for (var in pre.obj$logi) {
+      idx <- pre.obj$logi.idx[[var]]
+      transform_fn <- nn_sigmoid()
+      preds<-transform_fn(output.data[, idx] )
+      preds<-ifelse(preds >= 0.5,TRUE, FALSE)
+      imp.m <- cbind(imp.m, preds)
     }
   }
 
-  imp.data <- as.data.frame(imp.data)
+  if (length(pre.obj$bin) >= 1) {
+    for (var in pre.obj$bin) {
+      idx <- pre.obj$bin.idx[[var]]
+      transform_fn <- nn_sigmoid()
+      preds<-transform_fn(output.data[, idx] )
+      preds<-ifelse(preds >= 0.5,2, 1)
+      imp.m <- cbind(imp.m, preds)
+    }
+  }
 
-  return(imp.data)
+
+  if (length(pre.obj$multi) >= 1) {
+    for (var in pre.obj$multi) {
+      idx <- pre.obj$multi.idx[[var]]
+      transform_fn <- nn_softmax(dim = 2)
+      preds<- transform_fn(output.data[, idx])
+      imp.m <- cbind(imp.m, as_array(torch_argmax(preds, dim = 2)))
+    }
+  }
+
+  imp.df <- as.data.frame(imp.m)
+  colnames(imp.df) <- pre.obj$ordered.names
+
+  #recover the labels
+  if(!is.null(pre.obj$fac.levels)){
+    fac.names<-names(pre.obj$fac.levels)
+    for (var in fac.names) {
+      imp.df[[var]] <- pre.obj$fac.levels[[var]][imp.df[[var]]]
+    }
+
+  }
+
+  # unscaled numeric features (note: pre.obj$num includes pre.obj$int)
+  if (scaler != "none") {
+    if (scaler == "minmax") {
+      imp.df <- rev_minmax_scaler(scaled.data = imp.df, num.names = pre.obj$num, colmin = pre.obj$colmin, colmax = pre.obj$colmax)
+    } else if (scaler == "decile") {
+      imp.df <- rev_decile_scaler(scaled.data = imp.df, num.names = pre.obj$num, decile1 = pre.obj$decile1, decile9 = pre.obj$decile9)
+    } else if (scaler == "standard") {
+      imp.df <- rev_standard_scaler(scaled.data = imp.df, num.names = pre.obj$num, colmean = pre.obj$colmean, colsd = pre.obj$colsd)
+    }
+  }
+
+
+
+  #recover data types
+  imp.df<-imp.df %>%
+    dplyr::mutate_at(vars(pre.obj$logi),as.logical)%>%
+    dplyr::mutate_if(is.character, as.factor)%>%
+    dplyr::mutate_at(vars(pre.obj$int),round)%>%
+    dplyr::mutate_at(vars(pre.obj$int),as.integer)
+
+ return(imp.df)
+
 }
 
 
@@ -38,6 +87,7 @@ postprocess <- function(output.data, pre.obj, scaler) {
 #' @importFrom torch nn_sigmoid nn_softmax torch_argmax
 #' @export
 rev_onehot <- function(onehot.data, pre.obj) {
+
   if (length(pre.obj$num) >= 1) {
     imp.m <- as_array(onehot.data[, 1:length(pre.obj$num)])
   } else {

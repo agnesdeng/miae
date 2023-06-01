@@ -5,23 +5,9 @@
 #' @export
 vae <- nn_module(
   "vae",
-  initialize = function(categorical.encoding, n.others, cardinalities, embedding.dim,
-                        input.dropout, hidden.dropout, encoder.structure, latent.dim, decoder.structure, act) {
-
-    self$categorical.encoding <- categorical.encoding
-
-    if(categorical.encoding == "embeddings"){
-      self$embedder <- embedding_module(cardinalities, embedding.dim)
-      n.features<-n.others+sum(embedding.dim)
-    }else if(categorical.encoding == "onehot"){
-      n.features<-n.others+sum(cardinalities)
-    }else{
-      stop(cat('categorical.encoding can only be either "embeddings" or "onehot".\n'))
-    }
-
-    n.outputs<-n.others+sum(cardinalities)
-
+  initialize = function(n.features, input.dropout, hidden.dropout, encoder.structure, latent.dim, decoder.structure, act) {
     self$input.dropout <- input.dropout
+    # self$latent.dropout <- latent.dropout
     self$hidden.dropout <- hidden.dropout
 
     # encoder
@@ -88,41 +74,23 @@ vae <- nn_module(
       }
     }
 
-    num.dlayers <- length(decoder.structure)
-
-    decoder.list[[2 * length(decoder.structure) + 1]] <- nn_linear(decoder.structure[num.dlayers], n.outputs)
+    decoder.list[[2 * length(decoder.structure) + 1]] <- nn_linear(decoder.structure[i], n.features)
 
     self$decoder <- nn_module_list(modules = decoder.list)
-
   },
-
-  forward = function(num.tensor, logi.tensor, bin.tensor, cat.tensor) {
-
-    if(self$categorical.encoding=="embeddings"){
-      embedded.input<-self$embedder(cat.tensor)
-      L<-list(num.tensor, logi.tensor, bin.tensor,embedded.input)
-      L<-Filter(Negate(is.null),L)
-
-      x<-torch_cat(L,dim=2)
-    }else{
-      L<-list(num.tensor, logi.tensor, bin.tensor,cat.tensor)
-      L<-Filter(Negate(is.null),L)
-      x<-torch_cat(L,dim=2)
-    }
-
-
-    x <- nnf_dropout(input = x, p = self$input.dropout, inplace = FALSE)
+  forward = function(x) {
+    y <- nnf_dropout(input = x, p = self$input.dropout, inplace = FALSE)
 
     for (i in 1:length(self$encoder)) {
-      x <- self$encoder[[i]](x)
+      y <- self$encoder[[i]](y)
 
       if (i %% 2 == 0) {
-        x <- nnf_dropout(input = x, p = self$hidden.dropout, inplace = FALSE)
+        y <- nnf_dropout(input = y, p = self$hidden.dropout, inplace = FALSE)
       }
     }
 
-    mu <- self$mean(x)
-    log.var <- self$log_var(x)
+    mu <- self$mean(y)
+    log.var <- self$log_var(y)
     # z <- mu + torch_exp(log.var$mul(0.5)) * torch_randn(c(dim(x)[1], self$latent.dim))
 
     ### reparameterization

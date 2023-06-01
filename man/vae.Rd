@@ -5,7 +5,10 @@
 \title{Modules for variational autoencoders}
 \usage{
 vae(
-  n.features,
+  categorical.encoding,
+  n.others,
+  cardinalities,
+  embedding.dim,
   input.dropout,
   hidden.dropout,
   encoder.structure,

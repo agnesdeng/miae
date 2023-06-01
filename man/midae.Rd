@@ -2,11 +2,12 @@
 % Please edit documentation in R/midae.R
 \name{midae}
 \alias{midae}
-\title{Multiple imputation through denoising autoencoders with dropout}
+\title{Multiple imputation through denoising autoencoders with dropout (Use embeddings)}
 \usage{
 midae(
   data,
   m = 5,
+  categorical.encoding = "embeddings",
   device = "cpu",
   pmm.type = "auto",
   pmm.k = 5,
@@ -31,7 +32,7 @@ midae(
   init.weight = "xavier.normal",
   scaler = "standard",
   loss.na.scale = FALSE,
-  early_stopping_epochs = 1,
+  early.stopping.epochs = 1,
   verbose = TRUE,
   print.every.n = 1,
   save.model = FALSE,
@@ -42,6 +43,8 @@ midae(
 \item{data}{A data frame, tibble or data table with missing values.}
 
 \item{m}{The number of imputed datasets.}
+
+\item{categorical.encoding}{The method for representing multi-class categorical features. Can be either "embeddings" or "onehot".}
 
 \item{device}{Device to use. Either "cpu" or "cuda" for GPU.}
 
@@ -102,7 +105,7 @@ midae(
 
 \item{loss.na.scale}{Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.}
 
-\item{early_stopping_epochs}{An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.}
+\item{early.stopping.epochs}{An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.}
 
 \item{verbose}{Whether or not to print training loss information. Default: TRUE.}
 
@@ -113,7 +116,7 @@ midae(
 \item{path}{The path where the final imputation model will be saved.}
 }
 \description{
-Multiple imputation through denoising autoencoders with dropout
+Multiple imputation through denoising autoencoders with dropout (Use embeddings)
 }
 \examples{
 withNA.df <- createNA(data = iris, p = 0.2)

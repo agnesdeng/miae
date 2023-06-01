@@ -2,7 +2,6 @@
 
 export(createNA)
 export(dae)
-export(dae0)
 export(dae1)
 export(data_clean)
 export(decile)
