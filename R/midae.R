@@ -1067,6 +1067,8 @@ midae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
     params$pmm.type <- pmm.type
     params$pmm.link <- pmm.link
 
+    params$categorical.encoding<-categorical.encoding
+
 
 
 

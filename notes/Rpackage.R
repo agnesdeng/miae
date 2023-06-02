@@ -98,7 +98,7 @@ midae.imp
 
 
 
-mivae.imp<-mivae(data=withNA.df, categorical.encoding = "embeddings", m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL,
+imp.data<-mivae(data=withNA.df, categorical.encoding = "embeddings", m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL,
                  epochs = 10, batch.size = 500, drop.last = FALSE,
                  subsample = 0.7, shuffle = TRUE,
                  input.dropout = 0.2, hidden.dropout = 0.5,
@@ -108,6 +108,47 @@ mivae.imp<-mivae(data=withNA.df, categorical.encoding = "embeddings", m = 5, dev
                  loss.na.scale = FALSE,
                  early.stopping.epochs = 5,
                  verbose = TRUE, print.every.n = 1, save.model = FALSE, path = file.path(tempdir(), "mivaemodel.pt"))
+
+
+
+imp.obj<-mivae(data=withNA.df, categorical.encoding = "embeddings", m = 5, device = "cpu", pmm.type = 0, pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL,
+                epochs = 4, batch.size = 500, drop.last = FALSE,
+                subsample = 1, shuffle = TRUE,
+                input.dropout = 0, hidden.dropout = 0,
+                optimizer = "adamW", learning.rate = 0.0001, weight.decay = 0.002, momentum = 0, eps = 1e-07,
+                encoder.structure = c(128, 64, 32), latent.dim = 16, decoder.structure = c(32, 64, 128),
+                act = "elu", init.weight = "xavier.normal", scaler = "standard",
+                loss.na.scale = FALSE,
+                early.stopping.epochs = 1,
+                verbose = TRUE, print.every.n = 1, save.model = TRUE, path = file.path(tempdir(), "mivaemodel.pt"))
+
+imp.obj
+
+object=imp.obj
+newdata<-withNA.df[1:1000,]
+pmm.k = NULL
+m = NULL
+verbose = FALSE
+
+
+new.data<-impute_new(object=imp.obj, newdata=withNA.df[1:1000,], pmm.k = NULL, m = NULL, verbose = FALSE)
+new.data
+
+
+mivae.imp<-mivae(data=withNA.df, categorical.encoding = "embeddings", m = 5, device = "cpu", pmm.type = "auto", pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL,
+                 epochs = 10, batch.size = 500, drop.last = FALSE,
+                 subsample = 0.7, shuffle = TRUE,
+                 input.dropout = 0.2, hidden.dropout = 0.5,
+                 optimizer = "adamW", learning.rate = 0.0001, weight.decay = 0.002, momentum = 0, eps = 1e-07,
+                 encoder.structure = c(128, 64, 32), latent.dim = 16, decoder.structure = c(32, 64, 128),
+                 act = "elu", init.weight = "xavier.normal", scaler = "standard",
+                 loss.na.scale = FALSE,
+                 early.stopping.epochs = 5,
+                 verbose = TRUE, print.every.n = 1, save.model = TRUE, path = file.path(tempdir(), "mivaemodel.pt"))
+
+mivae.imp$imputed.data
+mivae.imp$model.path
+mivae.imp$params
 
 
 

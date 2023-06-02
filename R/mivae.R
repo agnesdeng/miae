@@ -1004,6 +1004,9 @@ mivae <- function(data, m = 5, beta = 1,
     params$pmm.type <- pmm.type
     params$pmm.link <- pmm.link
 
+    params$categorical.encoding<-categorical.encoding
+
+
 
 
 

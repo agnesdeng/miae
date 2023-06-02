@@ -15,13 +15,26 @@ impute_new <- function(object, newdata, pmm.k = NULL, m = NULL, verbose = FALSE)
 
   scaler <- params$scaler
 
-  pre.obj <- preprocess(newdata, scaler = scaler)
-
-  torch.data <- torch_dataset(newdata, scaler = scaler)
+  categorical.encoding<-params$categorical.encoding
 
 
-  n.features <- torch.data$.ncol()
-  n.samples <- torch.data$.length()
+  pre.obj <- preprocess(newdata, scaler = scaler, categorical.encoding = categorical.encoding)
+
+  #torch.data <- torch_dataset(newdata, scaler = scaler, categorical.encoding = categorical.encoding)
+
+  data.tensor<-torch_dataset(newdata, scaler = scaler, categorical.encoding = categorical.encoding)
+  #
+
+  n.samples <- nrow(newdata)
+  #n.features <- torch.data$.ncol()
+  #n.samples <- torch.data$.length()
+
+
+  cardinalities<-pre.obj$cardinalities
+  embedding.dim<-pre.obj$embedding.dim
+  origin.names <- colnames(newdata)
+  #n.num+n.logi+n.bin
+  n.others <- length(origin.names)-length(cardinalities)
 
   # new data
   new.na.loc <- pre.obj$na.loc
@@ -116,12 +129,12 @@ impute_new <- function(object, newdata, pmm.k = NULL, m = NULL, verbose = FALSE)
 
 
   # The whole dataset
-  eval_dl <- torch::dataloader(dataset = torch.data, batch_size = n.samples, shuffle = FALSE)
+  #eval_dl <- torch::dataloader(dataset = torch.data, batch_size = n.samples, shuffle = FALSE)
 
 
-  wholebatch <- eval_dl %>%
-    torch::dataloader_make_iter() %>%
-    torch::dataloader_next()
+ # wholebatch <- eval_dl %>%
+   # torch::dataloader_make_iter() %>%
+   # torch::dataloader_next()
 
 
 
@@ -130,11 +143,35 @@ impute_new <- function(object, newdata, pmm.k = NULL, m = NULL, verbose = FALSE)
 
 
   for (i in seq_len(m)) {
-    output.data <- model(wholebatch$data)
 
-    if (is.list(output.data)) {
+
+    if(categorical.encoding=="embeddings"){
+      Out <- model(num.tensor=data.tensor$num.tensor,logi.tensor=data.tensor$logi.tensor,bin.tensor=data.tensor$bin.tensor, cat.tensor=data.tensor$multi.tensor)
+    }else if(categorical.encoding=="onehot"){
+      Out <- model(num.tensor=data.tensor$num.tensor,logi.tensor=data.tensor$logi.tensor,bin.tensor=data.tensor$bin.tensor, cat.tensor=data.tensor$onehot.tensor)
+    }else{
+      stop(cat('categorical.encoding can only be either "embeddings" or "onehot".\n'))
+    }
+
+    #output.data <- model(data.tensor$num.tensor$to(device = device),data.tensor$logi.tensor$to(device = device),data.tensor$bin.tensor$to(device = device),data.tensor$multi.tensor$to(device = device))
+
+    #output.data = output.data
+    # pre.obj = pre.obj
+    #scaler = scaler
+
+   # length(Out)
+
+   # Out[[2]]
+    #Out[[1]]
+    #Out[[3]]
+    #Out
+    #output.data <- model(wholebatch$data)
+
+    if (is.list(Out)) {
       # mivae
-      output.data<-output.data$reconstrx
+      output.data<-Out$reconstrx
+    }else{
+      output.data<-Out
     }
 
     imp.data <- postprocess(output.data = output.data, pre.obj = pre.obj, scaler = scaler)
@@ -153,6 +190,20 @@ impute_new <- function(object, newdata, pmm.k = NULL, m = NULL, verbose = FALSE)
         if (var %in% pre.obj$num) {
           yhatmis <- imp.data[[var]][new.na.loc[, var]]
           newdata[[var]][new.na.loc[, var]] <- pmm(yhatobs = yhatobs.list[[i]][[var]], yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
+        }else if (var %in% pre.obj$logi) {
+          # binary
+          var.idx <- pre.obj$logi.idx[[var]]
+          if (pmm.link == "logit") {
+            yhatmis <- as_array(output.data[new.na.loc[, var], var.idx])
+          } else if (pmm.link == "prob") {
+            transform_fn <- nn_sigmoid()
+            yhatmis <- as_array(transform_fn(output.data[new.na.loc[, var], var.idx]))
+          } else {
+            stop("pmm.link has to be either `logit` or `prob`")
+          }
+
+          # use original data levels, avoiding the case when the new data do not include rare class
+          newdata[[var]][new.na.loc[, var]] <- pmm(yhatobs = yhatobs.list[[i]][[var]], yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
         } else if (var %in% pre.obj$bin) {
           # binary
           var.idx <- pre.obj$bin.idx[[var]]
@@ -164,9 +215,9 @@ impute_new <- function(object, newdata, pmm.k = NULL, m = NULL, verbose = FALSE)
           } else {
             stop("pmm.link has to be either `logit` or `prob`")
           }
-          level.idx <- pmm.multiclass(yhatobs = yhatobs.list[[i]][[var]], yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
+
           # use original data levels, avoiding the case when the new data do not include rare class
-          newdata[[var]][new.na.loc[, var]] <- levels(object$imputed.data[[1]][[var]])[level.idx]
+          newdata[[var]][new.na.loc[, var]] <- pmm(yhatobs = yhatobs.list[[i]][[var]], yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
         } else if (var %in% pre.obj$multi) {
           # multiclass
           var.idx <- pre.obj$multi.idx[[var]]
@@ -182,7 +233,20 @@ impute_new <- function(object, newdata, pmm.k = NULL, m = NULL, verbose = FALSE)
         if (var %in% pre.obj$num) {
           yhatmis <- imp.data[[var]][new.na.loc[, var]]
           newdata[[var]][new.na.loc[, var]] <- pmm(yhatobs = yhatobs.list[[var]], yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
-        } else if (var %in% pre.obj$bin) {
+        }  else if (var %in% pre.obj$logi) {
+          # binary
+          var.idx <- pre.obj$logi.idx[[var]]
+          if (pmm.link == "logit") {
+            yhatmis <- as_array(output.data[new.na.loc[, var], var.idx])
+          } else if (pmm.link == "prob") {
+            transform_fn <- nn_sigmoid()
+            yhatmis <- as_array(transform_fn(output.data[new.na.loc[, var], var.idx]))
+          } else {
+            stop("pmm.link has to be either `logit` or `prob`")
+          }
+          # use original data levels, avoiding the case when the new data do not include rare class
+          newdata[[var]][new.na.loc[, var]] <- pmm(yhatobs = yhatobs.list[[var]], yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
+        }else if (var %in% pre.obj$bin) {
           # binary
           var.idx <- pre.obj$bin.idx[[var]]
           if (pmm.link == "logit") {
@@ -193,9 +257,8 @@ impute_new <- function(object, newdata, pmm.k = NULL, m = NULL, verbose = FALSE)
           } else {
             stop("pmm.link has to be either `logit` or `prob`")
           }
-          level.idx <- pmm.multiclass(yhatobs = yhatobs.list[[var]], yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
           # use original data levels, avoiding the case when the new data do not include rare class
-          newdata[[var]][new.na.loc[, var]] <- levels(object$imputed.data[[1]][[var]])[level.idx]
+          newdata[[var]][new.na.loc[, var]] <- pmm(yhatobs = yhatobs.list[[var]], yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
         } else if (var %in% pre.obj$multi) {
           # multiclass
           var.idx <- pre.obj$multi.idx[[var]]
