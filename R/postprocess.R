@@ -58,10 +58,12 @@ postprocess <- function(output.data, pre.obj, scaler) {
   if (scaler != "none") {
     if (scaler == "minmax") {
       imp.df <- rev_minmax_scaler(scaled.data = imp.df, num.names = pre.obj$num, colmin = pre.obj$colmin, colmax = pre.obj$colmax)
-    } else if (scaler == "decile") {
-      imp.df <- rev_decile_scaler(scaled.data = imp.df, num.names = pre.obj$num, decile1 = pre.obj$decile1, decile9 = pre.obj$decile9)
+    } else if (scaler == "robust") {
+      imp.df <- rev_robust_scaler(scaled.data = imp.df, num.names = pre.obj$num, robust.lower = pre.obj$robust.lower, robust.upper = pre.obj$robust.upper,robust.median = pre.obj$robust.median)
     } else if (scaler == "standard") {
       imp.df <- rev_standard_scaler(scaled.data = imp.df, num.names = pre.obj$num, colmean = pre.obj$colmean, colsd = pre.obj$colsd)
+    } else if (scaler == "decile") {
+      imp.df <- rev_decile_scaler(scaled.data = imp.df, num.names = pre.obj$num, decile1 = pre.obj$decile1, decile9 = pre.obj$decile9)
     }
   }
 

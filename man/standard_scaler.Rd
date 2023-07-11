@@ -4,7 +4,7 @@
 \alias{standard_scaler}
 \title{scale a dataset using stardardize and return a scaled dataframe, the colmean and colsd of each column}
 \usage{
-standard_scaler(data)
+standard_scaler(data, initial.imp = "sample")
 }
 \arguments{
 \item{data}{A data frame or tibble}

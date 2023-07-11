@@ -4,7 +4,14 @@
 \alias{preprocess}
 \title{Pre-process data before imputation: scale numeric and one-hot categorical}
 \usage{
-preprocess(data, scaler = "none", categorical.encoding = "embeddings")
+preprocess(
+  data,
+  scaler = "none",
+  lower,
+  upper,
+  categorical.encoding = "embeddings",
+  initial.imp = "sample"
+)
 }
 \description{
 Pre-process data before imputation: scale numeric and one-hot categorical

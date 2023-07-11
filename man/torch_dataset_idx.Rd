@@ -4,7 +4,15 @@
 \alias{torch_dataset_idx}
 \title{prepare the dataset}
 \usage{
-torch_dataset_idx(data, idx, scaler, categorical.encoding)
+torch_dataset_idx(
+  data,
+  idx,
+  scaler,
+  lower,
+  upper,
+  categorical.encoding,
+  initial.imp
+)
 }
 \description{
 prepare the dataset

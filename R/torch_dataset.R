@@ -3,8 +3,8 @@
 #' @export
 torch_dataset <- torch::dataset(
   name = "torch_dataset",
-  initialize = function(data,scaler,categorical.encoding) {
-    pre.obj <- preprocess(data,scaler,categorical.encoding)
+  initialize = function(data,scaler,lower,upper,categorical.encoding, initial.imp) {
+    pre.obj <- preprocess(data,scaler,lower,upper,categorical.encoding, initial.imp)
 
     #self$torch.data <- pre.obj$data.tensor
     self$num.tensor<-pre.obj$data.tensor$num.tensor
@@ -47,9 +47,10 @@ torch_dataset <- torch::dataset(
 #' @importFrom torch dataset torch_tensor torch_cat nnf_one_hot
 #' @export
 torch_dataset_idx <- torch::dataset(
-  name = "torch_dataset",
-  initialize = function(data,idx,scaler,categorical.encoding) {
-    pre.obj <- preprocess(data[idx,],scaler,categorical.encoding)
+  name = "torch_dataset_idx",
+  initialize = function(data,idx,scaler,lower,upper,categorical.encoding, initial.imp) {
+
+    pre.obj <- preprocess(data[idx, , drop = FALSE],scaler,lower,upper,categorical.encoding, initial.imp)
     self$num.tensor<-pre.obj$data.tensor$num.tensor
     self$logi.tensor<-pre.obj$data.tensor$logi.tensor
     self$bin.tensor<-pre.obj$data.tensor$bin.tensor

@@ -3,122 +3,131 @@
 #' @importFrom dplyr mutate_all
 #' @importFrom stats median
 #' @export
-preprocess <- function(data, scaler="none", categorical.encoding = "embeddings") {
-
+preprocess <- function(data, scaler = "none", lower, upper, categorical.encoding = "embeddings",initial.imp = "sample") {
   Types <- feature_type(data)
 
   # Types
   original.names <- names(Types)
 
-  int<-original.names[Types %in% "integer"]
-  num <- original.names[Types %in% c("numeric","integer")]
+  int <- original.names[Types %in% "integer"]
+  num <- original.names[Types %in% c("numeric", "integer")]
   logi <- original.names[Types %in% "logical"]
   bin <- original.names[Types %in% "binary"]
   multi <- original.names[Types %in% "multiclass"]
 
 
-  ordered.names <- c(num, logi, bin,multi)
+  ordered.names <- c(num, logi, bin, multi)
   ordered.types <- Types[ordered.names]
 
   # ordered data according to numeric>binary>multiclass
   if (data.table::is.data.table(data)) {
     ordered.data <- data[, ordered.names, with = FALSE]
   } else {
-    ordered.data <- data[ordered.names]
+    ordered.data <- data[,ordered.names, drop = FALSE]
   }
 
   na.loc <- is.na(ordered.data)
 
 
-  #test<-original.names[Types %in% "test"]
+  # test<-original.names[Types %in% "test"]
 
   # ordered.names <- c(num, bin, multi)
- # ordered.types <- Types[ordered.names]
+  # ordered.types <- Types[ordered.names]
 
   # ordered data according to numeric->logical->binary->multiclass
-  #if (data.table::is.data.table(data)) {
-   # ordered.data <- data[, ordered.names, with = FALSE]
- # } else {
-   # ordered.data <- data[ordered.names]
- # }
+  # if (data.table::is.data.table(data)) {
+  # ordered.data <- data[, ordered.names, with = FALSE]
+  # } else {
+  # ordered.data <- data[ordered.names]
+  # }
 
- # na.loc <- is.na(ordered.data)
+  # na.loc <- is.na(ordered.data)
 
 
   data.tensor <- vector("list", 5)
-  names(data.tensor) <- c("num.tensor","logi.tensor","bin.tensor","multi.tensor","onehot.tensor")
+  names(data.tensor) <- c("num.tensor", "logi.tensor", "bin.tensor", "multi.tensor", "onehot.tensor")
 
   # if numeric feature exists
   if (length(num) >= 1) {
-
-
-    #scaler will initial impute numeric values with median
+    # scaler will initial impute numeric values with median
     if (scaler != "none") {
       if (scaler == "minmax") {
         if (is.data.table(data)) {
-          num.obj <- minmax_scaler(data[, num, with = FALSE])
+          num.obj <- minmax_scaler(data[, num, with = FALSE],initial.imp = initial.imp)
         } else {
-          num.obj <- minmax_scaler(data[, num])
+          num.obj <- minmax_scaler(data[, num, drop = FALSE],initial.imp = initial.imp)
         }
 
         num.mat <- num.obj$minmax.mat
 
         colmin <- num.obj$colmin
         colmax <- num.obj$colmax
-      } else if (scaler == "decile") {
+      } else if (scaler == "robust") {
         if (is.data.table(data)) {
-          num.obj <- decile_scaler(data[, num, with = FALSE])
+          num.obj <- robust_scaler(data[, num, with = FALSE],initial.imp = initial.imp, lower = lower, upper = upper)
         } else {
-          num.obj <- decile_scaler(data[, num])
+          num.obj <- robust_scaler(data[, num, drop = FALSE],initial.imp = initial.imp, lower = lower, upper = upper)
         }
 
-        num.mat <- num.obj$decile.mat
+        num.mat <- num.obj$robust.mat
 
-        decile1 <- num.obj$decile1
-        decile9 <- num.obj$decile9
+        robust.median <- num.obj$robust.median
+        robust.lower <- num.obj$robust.lower
+        robust.upper <- num.obj$robust.upper
       } else if (scaler == "standard") {
         if (is.data.table(data)) {
-          num.obj <- standard_scaler(data[, num, with = FALSE])
+          num.obj <- standard_scaler(data[, num, with = FALSE],initial.imp = initial.imp)
         } else {
-          num.obj <- standard_scaler(data[, num])
+          num.obj <- standard_scaler(data[, num, drop = FALSE],initial.imp = initial.imp)
         }
 
         num.mat <- num.obj$standard.mat
 
         colmean <- num.obj$colmean
         colsd <- num.obj$colsd
+      } else if (scaler == "decile") {
+        if (is.data.table(data)) {
+          num.obj <- decile_scaler(data[, num, with = FALSE],initial.imp = initial.imp)
+        } else {
+          num.obj <- decile_scaler(data[, num, drop = FALSE],initial.imp = initial.imp)
+        }
+
+        num.mat <- num.obj$decile.mat
+
+        decile1 <- num.obj$decile1
+        decile9 <- num.obj$decile9
       }
     } else {
       # don't scale numeric data:  scaler="none"
+      if(initial.imp=="mean"){
+        num.tibble <- dplyr::mutate_all(data[, num, drop = FALSE], ~ ifelse(is.na(.), mean(., na.rm = TRUE), .))
+      }else if(initial.imp=="median"){
+        num.tibble <- dplyr::mutate_all(data[, num, drop = FALSE], ~ ifelse(is.na(.), median(., na.rm = TRUE), .))
+      }else if(initial.imp=="sample"){
+        num.tibble <- dplyr::mutate_all(data[, num, drop = FALSE], ~ ifelse(is.na(.), samples(.),.))
+      }
 
-      num.tibble <- dplyr::mutate_all(data[, num], ~ ifelse(is.na(.), median(., na.rm = TRUE), .))
+
       num.mat <- as.matrix(num.tibble)
-
-
     }
 
 
-    data.tensor$num.tensor<-torch::torch_tensor(num.mat)
+    data.tensor$num.tensor <- torch::torch_tensor(num.mat)
 
     num.idx <- vector("list", length = length(num))
     names(num.idx) <- num
 
-    #if (!is.null(num)) {
-      #for (i in seq_along(num)) {
-       # num.idx[i] <- i
-      #}
-   # }
+    # if (!is.null(num)) {
+    # for (i in seq_along(num)) {
+    # num.idx[i] <- i
+    # }
+    # }
 
-      for (i in seq_along(num)) {
-        num.idx[[i]] <- i
-      }
-
-
-
-
-
-  }else{
-    #no numeric data
+    for (i in seq_along(num)) {
+      num.idx[[i]] <- i
+    }
+  } else {
+    # no numeric data
     num.idx <- NULL
     colmin <- NULL
     colmax <- NULL
@@ -126,7 +135,6 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
     colsd <- NULL
     decile1 <- NULL
     decile9 <- NULL
-
   }
 
 
@@ -144,29 +152,27 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
     bin.idx <- NULL
     multi.idx <- NULL
     cardinalities <- NULL
-    embedding.dim<-NULL
-
-  }else{
-
-
+    embedding.dim <- NULL
+    fac.levels <- NULL
+  } else {
     # levels for each categorical variables
-    fac.names<-c(bin, multi)
-    if(length(fac.names)>0){
+    fac.names <- c(bin, multi)
+    if (length(fac.names) > 0) {
       fac.levels <- vector("list", length(fac.names))
       names(fac.levels) <- fac.names
 
       for (var in fac.names) {
         fac.levels[[var]] <- levels(data[[var]])
       }
-    }else{
-      fac.levels<-NULL
+    } else {
+      fac.levels <- NULL
     }
 
 
 
 
-    if (length(logi)>=1) {
-      #logical variables exist:  -> 0,1
+    if (length(logi) >= 1) {
+      # logical variables exist:  -> 0,1
       if (data.table::is.data.table(data)) {
         logi.mat <- data[, logi, with = FALSE]
       } else {
@@ -179,8 +185,8 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
       logi.naidx <- which(logi.naSums != 0)
 
 
-      if(length(logi.naidx)!=0){
-        #initial impute with mode
+      if (length(logi.naidx) != 0) {
+        # initial impute with mode
         logi.navars <- logi[logi.naidx]
         for (var in logi.navars) {
           na.idx <- which(is.na(logi.mat[[var]]))
@@ -188,35 +194,34 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
           # Impute the missing values of a vector with the mode (majority class) of observed values
           logi.mat[[var]] <- imp.mode(vec = logi.mat[[var]], na.idx = na.idx)
         }
-
       }
 
       logi.mat <- logi.mat %>%
         dplyr::mutate_all(.funs = as.integer) %>%
         as.matrix()
 
-      #float type
+      # float type
 
       data.tensor$logi.tensor <- torch::torch_tensor(logi.mat, dtype = torch_float())
-      #data.tensor <- torch::torch_cat(list(data.tensor, logi.tensor), dim = 2)
+      # data.tensor <- torch::torch_cat(list(data.tensor, logi.tensor), dim = 2)
 
 
       logi.idx <- vector("list", length = length(logi))
       names(logi.idx) <- logi
 
       for (i in seq_along(logi)) {
-        logi.idx[[i]] <- length(num.idx)+i
+        logi.idx[[i]] <- length(num.idx) + i
       }
-
-
-    }else{
+    } else {
       logi.idx <- NULL
+      cardinalities <- NULL
+      embedding.dim <- NULL
     }
 
 
 
-    if (length(bin)>=1) {
-      #binary variables exist: -> 0,1
+    if (length(bin) >= 1) {
+      # binary variables exist: -> 0,1
       if (data.table::is.data.table(data)) {
         bin.mat <- data[, bin, with = FALSE]
       } else {
@@ -227,8 +232,8 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
       bin.naidx <- which(bin.naSums != 0)
 
 
-      if(length(bin.naidx)!=0){
-        #initial impute with mode
+      if (length(bin.naidx) != 0) {
+        # initial impute with mode
         bin.navars <- bin[bin.naidx]
         for (var in bin.navars) {
           na.idx <- which(is.na(bin.mat[[var]]))
@@ -236,38 +241,37 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
           # Impute the missing values of a vector with the mode (majority class) of observed values
           bin.mat[[var]] <- imp.mode(vec = bin.mat[[var]], na.idx = na.idx)
         }
-
       }
 
-     bin.mat <- bin.mat %>%
-      dplyr::mutate_all(.funs = as.integer) %>%
-      dplyr::mutate_all(~ . -1)%>%
-      as.matrix()
-    #float type
+      bin.mat <- bin.mat %>%
+        dplyr::mutate_all(.funs = as.integer) %>%
+        dplyr::mutate_all(~ . - 1) %>%
+        as.matrix()
+      # float type
 
-    data.tensor$bin.tensor <- torch::torch_tensor(bin.mat)
-    #data.tensor <- torch::torch_cat(list(data.tensor, bin.tensor), dim = 2)
-
-
-
-    bin.idx <- vector("list", length = length(bin))
-    names(bin.idx) <- bin
+      data.tensor$bin.tensor <- torch::torch_tensor(bin.mat)
+      # data.tensor <- torch::torch_cat(list(data.tensor, bin.tensor), dim = 2)
 
 
-    for (i in seq_along(bin)) {
-      bin.idx[[i]] <- length(num.idx)+length(logi.idx)+i
-    }
+
+      bin.idx <- vector("list", length = length(bin))
+      names(bin.idx) <- bin
 
 
-    }else{
+      for (i in seq_along(bin)) {
+        bin.idx[[i]] <- length(num.idx) + length(logi.idx) + i
+      }
+    } else {
       bin.idx <- NULL
+      cardinalities <- NULL
+      embedding.dim <- NULL
     }
 
 
 
 
-    if (length(multi)>=1) {
-      #multi-class variables exist: 1,2,3,4,...
+    if (length(multi) >= 1) {
+      # multi-class variables exist: 1,2,3,4,...
       if (data.table::is.data.table(data)) {
         multi.mat <- data[, multi, with = FALSE]
       } else {
@@ -278,8 +282,8 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
       multi.naidx <- which(multi.naSums != 0)
 
 
-      if(length(multi.naidx)!=0){
-        #initial impute with mode
+      if (length(multi.naidx) != 0) {
+        # initial impute with mode
         multi.navars <- multi[multi.naidx]
         for (var in multi.navars) {
           na.idx <- which(is.na(multi.mat[[var]]))
@@ -287,10 +291,9 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
           # Impute the missing values of a vector with the mode (majority class) of observed values
           multi.mat[[var]] <- imp.mode(vec = multi.mat[[var]], na.idx = na.idx)
         }
-
       }
 
-      #cardinalities: the number of levels
+      # cardinalities: the number of levels
       cardinalities <- multi.mat %>%
         dplyr::summarise(across(.cols = everything(), .fns = nlevels)) %>%
         unlist()
@@ -299,45 +302,38 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
       names(multi.idx) <- multi
 
 
-      multi.start<-length(num.idx)+length(logi.idx)+length(bin.idx)
+      multi.start <- length(num.idx) + length(logi.idx) + length(bin.idx)
       for (i in seq_along(multi)) {
-        multi.idx[[i]] <- multi.start+1:cardinalities[i]
-        multi.start<-multi.idx[[i]][length(multi.idx[[i]])]
+        multi.idx[[i]] <- multi.start + 1:cardinalities[i]
+        multi.start <- multi.idx[[i]][length(multi.idx[[i]])]
       }
 
 
-      if(categorical.encoding == "embeddings"){
-
+      if (categorical.encoding == "embeddings") {
         multi.mat <- multi.mat %>%
-          dplyr::mutate_all(.funs = as.integer)%>%
+          dplyr::mutate_all(.funs = as.integer) %>%
           as.matrix()
 
 
-        #Note:  long type can't use torch_cat()
+        # Note:  long type can't use torch_cat()
 
         data.tensor$multi.tensor <- torch::torch_tensor(multi.mat)
 
 
 
-        embedding.dim<-ifelse(cardinalities<5,cardinalities +2,
-                              ifelse(cardinalities<7, cardinalities+1,
-                                     ifelse(cardinalities<9, cardinalities,
-                                            ifelse(cardinalities<16, 8, ceiling(cardinalities/2)))))
+        # embedding.dim<-ifelse(cardinalities<5,cardinalities +2,
+        # ifelse(cardinalities<7, cardinalities+1,
+        # ifelse(cardinalities<9, cardinalities,
+        # ifelse(cardinalities<16, 8, ceiling(cardinalities/2)))))
+
+        embedding.dim <- ceiling(cardinalities^(1 / 4))
 
 
 
 
-
-
-        names(embedding.dim)<-names(cardinalities)
-
-
-
-
-
-      }else if(categorical.encoding == "onehot"){
-
-        embedding.dim<-NULL
+        names(embedding.dim) <- names(cardinalities)
+      } else if (categorical.encoding == "onehot") {
+        embedding.dim <- NULL
 
 
         onehot.list <- vector("list", length = length(multi))
@@ -348,41 +344,29 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
         }
 
         # combine numeric data with one-hot encoded categorical variables
-        data.tensor$onehot.tensor  <- torch::torch_cat(onehot.list, dim = 2)
+        data.tensor$onehot.tensor <- torch::torch_cat(onehot.list, dim = 2)
 
 
         multi.mat <- multi.mat %>%
-          dplyr::mutate_all(.funs = as.integer)%>%
+          dplyr::mutate_all(.funs = as.integer) %>%
           as.matrix()
 
 
-        #Note:  long type can't use torch_cat()
+        # Note:  long type can't use torch_cat()
 
         data.tensor$multi.tensor <- torch::torch_tensor(multi.mat)
 
-        #head(onehot.list$DMARACER)
-        #head(multi.mat$DMARACER)
-
-
-
-      }else{
+        # head(onehot.list$DMARACER)
+        # head(multi.mat$DMARACER)
+      } else {
         stop(cat('categorical.encoding can only be either "embeddings" or "onehot".\n'))
       }
-
-
-
-
-    }else{
-      cardinalities<-NULL
-      embedding.dim<-NULL
+    } else {
+      cardinalities <- NULL
+      embedding.dim <- NULL
       multi.idx <- NULL
-
     }
-
-
-
-
-    }
+  }
 
 
 
@@ -395,38 +379,38 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
       "original.names" = original.names,
       "ordered.names" = ordered.names,
       "ordered.types" = ordered.types,
-      "int"=int,
+      "int" = int,
       "num" = num,
-      "logi"=logi,
+      "logi" = logi,
       "bin" = bin,
       "multi" = multi,
       "num.idx" = num.idx,
       "logi.idx" = logi.idx,
       "bin.idx" = bin.idx,
       "multi.idx" = multi.idx,
-      "cardinalities"= cardinalities,
-      "embedding.dim"= embedding.dim,
+      "cardinalities" = cardinalities,
+      "embedding.dim" = embedding.dim,
       "fac.levels" = fac.levels
     ))
-  } else if (scaler == "decile") {
+  } else if (scaler == "robust") {
     return(list(
       "data.tensor" = data.tensor,
       "na.loc" = na.loc,
-      "decile1" = decile1, "decile9" = decile9,
+      "robust.lower" = robust.lower, "robust.upper" = robust.upper, "robust.median" = robust.median,
       "original.names" = original.names,
       "ordered.names" = ordered.names,
       "ordered.types" = ordered.types,
-      "int"=int,
+      "int" = int,
       "num" = num,
-      "logi"=logi,
+      "logi" = logi,
       "bin" = bin,
       "multi" = multi,
       "num.idx" = num.idx,
       "logi.idx" = logi.idx,
       "bin.idx" = bin.idx,
       "multi.idx" = multi.idx,
-      "cardinalities"= cardinalities,
-      "embedding.dim"= embedding.dim,
+      "cardinalities" = cardinalities,
+      "embedding.dim" = embedding.dim,
       "fac.levels" = fac.levels
     ))
   } else if (scaler == "standard") {
@@ -437,17 +421,38 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
       "original.names" = original.names,
       "ordered.names" = ordered.names,
       "ordered.types" = ordered.types,
-      "int"=int,
+      "int" = int,
       "num" = num,
-      "logi"=logi,
+      "logi" = logi,
       "bin" = bin,
       "multi" = multi,
       "num.idx" = num.idx,
       "logi.idx" = logi.idx,
       "bin.idx" = bin.idx,
       "multi.idx" = multi.idx,
-      "cardinalities"= cardinalities,
-      "embedding.dim"= embedding.dim,
+      "cardinalities" = cardinalities,
+      "embedding.dim" = embedding.dim,
+      "fac.levels" = fac.levels
+    ))
+  } else if (scaler == "decile") {
+    return(list(
+      "data.tensor" = data.tensor,
+      "na.loc" = na.loc,
+      "decile1" = decile1, "decile9" = decile9,
+      "original.names" = original.names,
+      "ordered.names" = ordered.names,
+      "ordered.types" = ordered.types,
+      "int" = int,
+      "num" = num,
+      "logi" = logi,
+      "bin" = bin,
+      "multi" = multi,
+      "num.idx" = num.idx,
+      "logi.idx" = logi.idx,
+      "bin.idx" = bin.idx,
+      "multi.idx" = multi.idx,
+      "cardinalities" = cardinalities,
+      "embedding.dim" = embedding.dim,
       "fac.levels" = fac.levels
     ))
   } else {
@@ -457,17 +462,17 @@ preprocess <- function(data, scaler="none", categorical.encoding = "embeddings")
       "original.names" = original.names,
       "ordered.names" = ordered.names,
       "ordered.types" = ordered.types,
-      "int"=int,
+      "int" = int,
       "num" = num,
-      "logi"=logi,
+      "logi" = logi,
       "bin" = bin,
       "multi" = multi,
       "num.idx" = num.idx,
       "logi.idx" = logi.idx,
       "bin.idx" = bin.idx,
       "multi.idx" = multi.idx,
-      "cardinalities"= cardinalities,
-      "embedding.dim"= embedding.dim,
+      "cardinalities" = cardinalities,
+      "embedding.dim" = embedding.dim,
       "fac.levels" = fac.levels
     ))
   }
@@ -491,12 +496,12 @@ feature_type <- function(data) {
     } else if (typeof(data[[var]]) == "logical") {
       types[var] <- "logical"
     } else {
-      #integer
-      if(nlevels(data[[var]])==0){
+      # integer
+      if (nlevels(data[[var]]) == 0) {
         types[var] <- "integer"
-      }else if(nlevels(data[[var]])==2){
+      } else if (nlevels(data[[var]]) == 2) {
         types[var] <- "binary"
-      }else if(nlevels(data[[var]])>2){
+      } else if (nlevels(data[[var]]) > 2) {
         types[var] <- "multiclass"
       }
     }
@@ -532,6 +537,3 @@ imp.mode <- function(vec, na.idx = NULL) {
   }
   vec
 }
-
-
-

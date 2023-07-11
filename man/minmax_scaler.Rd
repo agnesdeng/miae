@@ -4,7 +4,7 @@
 \alias{minmax_scaler}
 \title{scale a dataset using minmax and return a scaled dataframe, the colmin and colmax of each column}
 \usage{
-minmax_scaler(data)
+minmax_scaler(data, initial.imp = "sample")
 }
 \arguments{
 \item{data}{A data frame or tibble}

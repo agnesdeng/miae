@@ -9,30 +9,13 @@ midae(
   m = 5,
   categorical.encoding = "embeddings",
   device = "cpu",
-  pmm.type = "auto",
-  pmm.k = 5,
-  pmm.link = "prob",
-  pmm.save.vars = NULL,
   epochs = 5,
   batch.size = 32,
-  drop.last = FALSE,
   subsample = 1,
-  shuffle = TRUE,
-  input.dropout = 0.2,
-  hidden.dropout = 0.5,
-  optimizer = "adamW",
-  learning.rate = 1e-04,
-  weight.decay = 0.002,
-  momentum = 0,
-  eps = 1e-07,
-  encoder.structure = c(128, 64, 32),
-  latent.dim = 16,
-  decoder.structure = c(32, 64, 128),
-  act = "elu",
-  init.weight = "xavier.normal",
-  scaler = "standard",
-  loss.na.scale = FALSE,
   early.stopping.epochs = 1,
+  dae.params = list(),
+  pmm.params = list(),
+  loss.na.scale = FALSE,
   verbose = TRUE,
   print.every.n = 1,
   save.model = FALSE,
@@ -47,6 +30,24 @@ midae(
 \item{categorical.encoding}{The method for representing multi-class categorical features. Can be either "embeddings" or "onehot".}
 
 \item{device}{Device to use. Either "cpu" or "cuda" for GPU.}
+
+\item{epochs}{The number of training epochs (iterations).}
+
+\item{batch.size}{The size of samples in each batch. Default: 32.}
+
+\item{subsample}{The subsample ratio of training data. Default: 1.}
+
+\item{early.stopping.epochs}{An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.}
+
+\item{loss.na.scale}{Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.}
+
+\item{verbose}{Whether or not to print training loss information. Default: TRUE.}
+
+\item{print.every.n}{If verbose is set to TRUE, print out training loss for every n epochs.}
+
+\item{save.model}{Whether or not to save the imputation model. Default: FALSE.}
+
+\item{path}{The path where the final imputation model will be saved.}
 
 \item{pmm.type}{The type of predictive mean matching (PMM). Possible values:
 \itemize{
@@ -67,13 +68,7 @@ midae(
 
 \item{pmm.save.vars}{The names of variables whose predicted values of observed entries will be saved. Only use for PMM.}
 
-\item{epochs}{The number of training epochs (iterations).}
-
-\item{batch.size}{The size of samples in each batch. Default: 32.}
-
 \item{drop.last}{Whether or not to drop the last batch. Default: FALSE}
-
-\item{subsample}{The subsample ratio of training data. Default: 1.}
 
 \item{shuffle}{Whether or not to shuffle training data. Default: TRUE}
 
@@ -102,18 +97,6 @@ midae(
 \item{init.weight}{Techniques for weights initialization. Can be "xavier.uniform", "xavier.normal" or "xavier.midas" (or "kaiming.uniform")}
 
 \item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".}
-
-\item{loss.na.scale}{Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.}
-
-\item{early.stopping.epochs}{An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.}
-
-\item{verbose}{Whether or not to print training loss information. Default: TRUE.}
-
-\item{print.every.n}{If verbose is set to TRUE, print out training loss for every n epochs.}
-
-\item{save.model}{Whether or not to save the imputation model. Default: FALSE.}
-
-\item{path}{The path where the final imputation model will be saved.}
 }
 \description{
 Multiple imputation through denoising autoencoders with dropout (Use embeddings)

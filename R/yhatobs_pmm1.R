@@ -5,7 +5,7 @@ yhatobs_pmm1 <- function(module="dae", data, categorical.encoding, device,
                          shuffle = TRUE,
                          optimizer = "adamW", learning.rate = 0.0001, weight.decay = 0.002, momentum = 0, eps = 1e-07,
                          encoder.structure = c(128, 64, 32), latent.dim = 16, decoder.structure = c(32, 64, 128),
-                         act = "elu", init.weight = "xavier.normal", scaler = "standard",
+                         act = "elu", init.weight = "xavier.normal", scaler = "standard", initial.imp = initial.imp,lower= lower, upper=upper,
                          loss.na.scale = FALSE,
                          verbose = TRUE, print.every.n = 1) {
   # param xgb.params NULL if XGBmodels was fed in
@@ -21,7 +21,7 @@ yhatobs_pmm1 <- function(module="dae", data, categorical.encoding, device,
   hidden.dropout <- 0
 
 
-  pre.obj <- preprocess(data, scaler = scaler, categorical.encoding = categorical.encoding)
+  pre.obj <- preprocess(data, scaler = scaler, lower=lower, upper=upper, categorical.encoding = categorical.encoding,initial.imp = initial.imp)
   cardinalities<-pre.obj$cardinalities
   embedding.dim<-pre.obj$embedding.dim
 
@@ -31,7 +31,7 @@ yhatobs_pmm1 <- function(module="dae", data, categorical.encoding, device,
 
 
   #torch.data <- torch_dataset(data, scaler = scaler)
-  data.tensor<-torch_dataset(data, scaler = scaler, categorical.encoding = categorical.encoding)
+  data.tensor<-torch_dataset(data, scaler = scaler, lower=lower, upper=upper,uppercategorical.encoding = categorical.encoding,initial.imp = initial.imp)
 
   #n.features <- torch.data$.ncol()
 

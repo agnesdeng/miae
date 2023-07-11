@@ -4,7 +4,7 @@
 \alias{decile_scaler}
 \title{scale a dataset using decile and return a scaled dataframe, the 1st decile and the 9th decile of each column}
 \usage{
-decile_scaler(data)
+decile_scaler(data, initial.imp = "sample")
 }
 \arguments{
 \item{data}{A data frame or tibble}

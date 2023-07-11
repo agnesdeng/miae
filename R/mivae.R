@@ -35,7 +35,7 @@
 #' @param latent.dim The size of latent layer. The default value is 16.
 #' @param decoder.structure A vector indicating the structure of decoder. Default: c(32,64,128)
 #' @param act The name of activation function. Can be: "relu", "elu", "leaky.relu", "tanh", "sigmoid" and "identity".
-#' @param init.weight Techniques for weights initialization. Can be "xavier.uniform" or "kaiming.uniform".
+#' @param init.weight Techniques for weights initialization. Can be Can be "he.normal","he.uniform", "xavier.uniform", "xavier.normal" or "xavier.midas".
 #' @param scaler The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".
 #' @param early.stopping.epochs An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.
 #' @param loss.na.scale Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.
@@ -49,19 +49,49 @@
 #' @examples
 #' withNA.df <- createNA(data = iris, p = 0.2)
 #' imputed.data <- mivae(data = withNA.df, m = 5, epochs = 5, path = file.path(tempdir(), "mivaemodel.pt"))
-mivae <- function(data, m = 5, beta = 1,
-                  categorical.encoding = "embeddings", device = "cpu",
-                  pmm.type = NULL, pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL,
-                  epochs = 5, batch.size = 32, drop.last = FALSE,
-                  subsample = 1, shuffle = TRUE,
-                  input.dropout = 0, hidden.dropout = 0,
-                  optimizer = "adamW", learning.rate = 0.0001, weight.decay = 0.002, momentum = 0, eps = 1e-07,
-                  encoder.structure = c(128, 64, 32), latent.dim = 16, decoder.structure = c(32, 64, 128),
-                  act = "elu", init.weight = "xavier.normal", scaler = "standard",
-                  early.stopping.epochs = 1, loss.na.scale = FALSE,
-                  verbose = TRUE, print.every.n = 1, save.model = FALSE, path = NULL) {
+mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cpu",
+                  epochs = 5, batch.size = 32,
+                  subsample = 1,
+                  early.stopping.epochs = 1,
+                  vae.params=list(),
+                  pmm.params=list(),
+                  loss.na.scale = FALSE,
+                  verbose = TRUE, print.every.n = 1,
+                  save.model = FALSE, path = NULL) {
 
   device <- torch_device(device)
+
+  vae.params <- do.call("vae_default", vae.params)
+  pmm.params <- do.call("vae_pmm_default", pmm.params)
+
+
+  shuffle <- vae.params$shuffle
+  drop.last<- vae.params$drop.last
+  beta <- vae.params$beta
+  input.dropout <- vae.params$input.dropout
+  hidden.dropout <- vae.params$hidden.dropout
+  optimizer <- vae.params$optimizer
+  learning.rate <- vae.params$learning.rate
+  weight.decay <- vae.params$weight.decay
+  momentum <- vae.params$momentum
+  eps <- vae.params$eps
+  encoder.structure <- vae.params$encoder.structure
+  latent.dim <- vae.params$latent.dim
+  decoder.structure<- vae.params$decoder.structure
+  act <- vae.params$act
+  init.weight <- vae.params$init.weight
+  scaler <- vae.params$scaler
+  lower<-vae.params$lower
+  upper<-vae.params$upper
+  initial.imp<-vae.params$initial.imp
+
+
+
+  pmm.type <- pmm.params$pmm.type
+  pmm.k <- pmm.params$pmm.k
+  pmm.link <- pmm.params$pmm.link
+  pmm.save.vars <- pmm.params$pmm.save.vars
+
 
   if (subsample == 1 & early.stopping.epochs > 1) {
     stop("To use early stopping based on validation error, please set subsample < 1.")
@@ -81,7 +111,8 @@ mivae <- function(data, m = 5, beta = 1,
   }
 
 
-  pre.obj <- preprocess(data, scaler = scaler, categorical.encoding = categorical.encoding)
+  pre.obj <- preprocess(data, scaler = scaler, lower=lower,upper=upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
+
 
   cardinalities<-pre.obj$cardinalities
   embedding.dim<-pre.obj$embedding.dim
@@ -90,7 +121,7 @@ mivae <- function(data, m = 5, beta = 1,
   n.others <- length(origin.names)-length(cardinalities)
 
 
-  data.tensor<-torch_dataset(data, scaler = scaler, categorical.encoding = categorical.encoding)
+  data.tensor<-torch_dataset(data, scaler = scaler, lower=lower,upper=upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
 
   n.samples <- nrow(data)
 
@@ -153,7 +184,7 @@ mivae <- function(data, m = 5, beta = 1,
                                  epochs = epochs, batch.size = batch.size, drop.last = drop.last, shuffle = shuffle,
                                  optimizer = optimizer, learning.rate = learning.rate, weight.decay = weight.decay, momentum = momentum, eps = eps,
                                  encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure,
-                                 act = act, init.weight = init.weight, scaler = scaler,
+                                 act = act, init.weight = init.weight, scaler = scaler,initial.imp = initial.imp,lower=lower, upper=upper,
                                  loss.na.scale = loss.na.scale,
                                  verbose = verbose, print.every.n = print.every.n
     )
@@ -189,8 +220,10 @@ mivae <- function(data, m = 5, beta = 1,
     train.samples <- length(train.idx)
     valid.samples <- length(valid.idx)
 
-    train.original.data<-torch_dataset_idx(data, idx=train.idx, scaler = scaler, categorical.encoding = categorical.encoding)
-    valid.original.data<-torch_dataset_idx(data, idx=valid.idx, scaler = scaler, categorical.encoding = categorical.encoding)
+
+
+    train.original.data<-torch_dataset_idx(data, idx=train.idx, scaler = scaler, lower=lower,upper=upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
+    valid.original.data<-torch_dataset_idx(data, idx=valid.idx, scaler = scaler, lower=lower,upper=upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
 
     train.batches<-batch_set(n.samples = train.samples, batch.size = batch.size, drop.last = drop.last)
     train.batch.set<-train.batches$batch.set
@@ -210,13 +243,19 @@ mivae <- function(data, m = 5, beta = 1,
 
   model <-model$to(device=device)
 
-  if (init.weight == "xavier.normal") {
-    model$apply(init_xavier_normal)
+
+  if (init.weight == "he.normal") {
+    model$apply(init_he_normal, mode = "fan_in", slope = 0, nonlinearity = "relu")
+  }else if (init.weight == "he.uniform") {
+    model$apply(init_he_uniform, mode = "fan_in", slope = 0, nonlinearity = "relu")
+  }else if (init.weight == "xavier.normal") {
+    model$apply(init_xavier_normal,gain=1)
   } else if (init.weight == "xavier.uniform") {
-    model$apply(init_xavier_uniform)
+    model$apply(init_xavier_uniform,gain=1)
   } else if (init.weight == "xavier.midas") {
-    model$apply(init_xavier_midas)
+    model$apply(init_xavier_midas,gain=1 / sqrt(2))
   }
+
 
 
 
@@ -281,6 +320,8 @@ mivae <- function(data, m = 5, beta = 1,
       bin.tensor<-move_to_device(tensor=b$data$bin.tensor, device=device)
       multi.tensor<-move_to_device(tensor=b$data$multi.tensor, device=device)
       onehot.tensor<-move_to_device(tensor=b$data$onehot.tensor, device=device)
+
+
 
       if(categorical.encoding=="embeddings"){
         Out <- model(num.tensor=num.tensor,logi.tensor=logi.tensor,bin.tensor=bin.tensor, cat.tensor=multi.tensor)
@@ -1015,4 +1056,26 @@ mivae <- function(data, m = 5, beta = 1,
     class(mivae.obj) <- "mivaeObj"
     return(mivae.obj)
   }
+}
+
+
+#' Auxiliary function for pmm.params for mivae
+#' @description Auxiliary function for setting up the default pmm-related parameters for mivae
+vae_pmm_default <-function(pmm.type = NULL, pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL){
+  list(pmm.type = pmm.type, pmm.k = pmm.k, pmm.link = pmm.link, pmm.save.vars = pmm.save.vars)
+}
+
+
+#' Auxiliary function for vae.params
+#' @description Auxiliary function for setting up the default vae-related hyperparameters for mivae
+vae_default<-function(shuffle = TRUE, drop.last = FALSE,
+                      beta = 1, input.dropout = 0, hidden.dropout = 0,
+                      optimizer = "adamW", learning.rate = 0.0001, weight.decay = 0.002, momentum = 0, eps = 1e-07,
+                      encoder.structure = c(128, 64, 32), latent.dim = 16, decoder.structure = c(32, 64, 128),
+                      act = "elu", init.weight = "xavier.normal", scaler = "standard",initial.imp = "sample", lower=0.25,upper=0.75){
+  list(shuffle = shuffle, drop.last = drop.last,
+       beta = beta, input.dropout = input.dropout, hidden.dropout = hidden.dropout,
+       optimizer = optimizer, learning.rate = learning.rate, weight.decay = weight.decay, momentum = momentum, eps = eps,
+       encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure,
+       act = act, init.weight = init.weight, scaler = scaler,initial.imp = initial.imp, lower=lower, upper=upper)
 }

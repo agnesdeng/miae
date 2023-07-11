@@ -10,19 +10,26 @@ vae <- nn_module(
 
     self$categorical.encoding <- categorical.encoding
 
-    if(categorical.encoding == "embeddings"){
-      self$embedder <- embedding_module(cardinalities, embedding.dim)
-      n.features<-n.others+sum(embedding.dim)
-    }else if(categorical.encoding == "onehot"){
-      n.features<-n.others+sum(cardinalities)
+    if(!is.null(embedding.dim)){
+      if(categorical.encoding == "embeddings"){
+        self$embedder <- embedding_module(cardinalities, embedding.dim)
+        n.features<-n.others+sum(embedding.dim)
+      }else if(categorical.encoding == "onehot"){
+        n.features<-n.others+sum(cardinalities)
+      }else{
+        stop(cat('categorical.encoding can only be either "embeddings" or "onehot".\n'))
+      }
     }else{
-      stop(cat('categorical.encoding can only be either "embeddings" or "onehot".\n'))
+      n.features<-n.others
     }
+
+
 
     n.outputs<-n.others+sum(cardinalities)
 
     self$input.dropout <- input.dropout
     self$hidden.dropout <- hidden.dropout
+    self$embedding.dim <- embedding.dim
 
     # encoder
     encoder.list <- list()
@@ -98,17 +105,29 @@ vae <- nn_module(
 
   forward = function(num.tensor, logi.tensor, bin.tensor, cat.tensor) {
 
-    if(self$categorical.encoding=="embeddings"){
-      embedded.input<-self$embedder(cat.tensor)
-      L<-list(num.tensor, logi.tensor, bin.tensor,embedded.input)
-      L<-Filter(Negate(is.null),L)
+    if(!is.null(self$embedding.dim)){
+      #multi-class
+      if(self$categorical.encoding=="embeddings"){
+        embedded.input<-self$embedder(cat.tensor)
+        L<-list(num.tensor, logi.tensor, bin.tensor,embedded.input)
+        L<-Filter(Negate(is.null),L)
+        x<-torch_cat(L,dim=2)
+      }else{
+        L<-list(num.tensor, logi.tensor, bin.tensor,cat.tensor)
+        L<-Filter(Negate(is.null),L)
+        x<-torch_cat(L,dim=2)
+      }
 
-      x<-torch_cat(L,dim=2)
     }else{
-      L<-list(num.tensor, logi.tensor, bin.tensor,cat.tensor)
+      #only numeric or binary
+      L<-list(num.tensor, logi.tensor, bin.tensor)
       L<-Filter(Negate(is.null),L)
       x<-torch_cat(L,dim=2)
+
+
     }
+
+
 
 
     x <- nnf_dropout(input = x, p = self$input.dropout, inplace = FALSE)
