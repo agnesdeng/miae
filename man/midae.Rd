@@ -94,7 +94,7 @@ midae(
 
 \item{act}{The name of activation function. Can be: "relu", "elu", "leaky.relu", "tanh", "sigmoid" and "identity".}
 
-\item{init.weight}{Techniques for weights initialization. Can be "xavier.uniform", "xavier.normal" or "xavier.midas" (or "kaiming.uniform")}
+\item{init.weight}{Techniques for weights initialization. Can be "he.normal","he.uniform", "xavier.uniform", "xavier.normal" or "xavier.midas".}
 
 \item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".}
 }

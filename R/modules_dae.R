@@ -44,6 +44,8 @@ dae <- nn_module(
         encoder.list[[2 * i]] <- nn_relu()
       }else if(act=="elu"){
         encoder.list[[2 * i]] <- nn_elu()
+      }else if(act=="selu"){
+        encoder.list[[2 * i]] <- nn_selu()
       }else if(act=="identity"){
         encoder.list[[2 * i]] <- nn_identity()
       }else if(act=="tanh"){
@@ -86,6 +88,8 @@ dae <- nn_module(
         decoder.list[[2 * i]] <- nn_relu()
       }else if (act=="elu"){
         decoder.list[[2 * i]] <- nn_elu()
+      }else if(act=="selu"){
+        decoder.list[[2 * i]] <- nn_selu()
       }else if(act=="identity"){
         decoder.list[[2 * i]] <- nn_identity()
       }else if(act=="tanh"){
@@ -122,10 +126,13 @@ dae <- nn_module(
 
 
     if(self$categorical.encoding=="embeddings"){
-      embedded.input<-self$embedder(cat.tensor)
+      if(is.null(cat.tensor)){
+        embedded.input<-cat.tensor
+      }else{
+        embedded.input<-self$embedder(cat.tensor)
+      }
       L<-list(num.tensor, logi.tensor, bin.tensor,embedded.input)
       L<-Filter(Negate(is.null),L)
-
       x<-torch_cat(L,dim=2)
     }else{
       L<-list(num.tensor, logi.tensor, bin.tensor,cat.tensor)

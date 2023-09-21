@@ -1,3 +1,12 @@
+set.seed(2023)
+x<-rnorm(1000,mean=100,sd=30)
+x.df<-data.frame(x=x)
+withNA.df<-createNA(data=x.df,p=0.5)
+
+robust_scaler(withNA.df,initial.imp = "median")
+
+
+
 
 
 setwd("C:/Users/agnes/Desktop/phd-thesis/my-projects/miae-paper/supplement/mixgbsim")
@@ -16,16 +25,61 @@ devtools::load_all()
 devtools::document()
 
 
+midae.imp<-midae(data=withNA.df, m = 5,
+                 categorical.encoding = "onehot", device = "cpu",
+                 epochs = 5, batch.size = 1000,
+                 early.stopping.epochs = 5, subsample = 0.7,
+                 dae.params = list(shuffle = TRUE, drop.last = FALSE,
+                                   input.dropout = 0.2, hidden.dropout = 0.5,
+                                   optimizer = "adamW", learning.rate = 0.001, weight.decay = 0.01, momentum = 0, dampening = 0, eps = 1e-08, rho = 0.9, alpha = 0.99, learning.rate.decay = 0,
+                                   encoder.structure = c(128, 64, 32), latent.dim = 16, decoder.structure = c(32, 64, 128),
+                                   act = "relu", init.weight = "he.normal", scaler = "standard",initial.imp = "sample", lower=0.25, upper=0.75),
+                 pmm.params = list(pmm.type = "auto", pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL),
+                 loss.na.scale = FALSE,
+                 verbose = TRUE,print.every.n = 1,
+                 save.model = FALSE,
+                 path = file.path(tempdir(), "midaemodel.pt"))
 
 
 
+mivae.imp<-mivae(data=withNA.df, m = 5, epochs = 5, batch.size = 1000,
+                 categorical.encoding = "onehot", device = "cpu",
+                 subsample = 0.7, early.stopping.epochs = 1,
+                 vae.params = list(shuffle = TRUE, drop.last = FALSE,
+                                   beta = 1, input.dropout = 0, hidden.dropout = 0,
+                                   optimizer = "adamW", learning.rate = 0.001, weight.decay = 0.01, momentum = 0, dampening = 0, eps = 1e-08, rho = 0.9, alpha = 0.99, learning.rate.decay = 0,
+                                   encoder.structure = c(128, 64, 32), latent.dim = 16, decoder.structure = c(32, 64, 128),
+                                   act = "relu", init.weight = "he.normal", scaler = "standard",initial.imp = "sample", lower=0.25,upper=0.75),
+                 pmm.params = list(pmm.type = NULL, pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL),
+                 loss.na.scale = FALSE,
+                 verbose = TRUE,print.every.n = 1,
+                 save.model = FALSE,
+                 path = file.path(tempdir(), "mivaemodel.pt"))
 
-set.seed(2023)
-x<-rnorm(1000,mean=100,sd=30)
-x.df<-data.frame(x=x)
-withNA.df<-createNA(data=x.df,p=0.5)
 
-robust_scaler(withNA.df,initial.imp = "median")
+
+data=withNA.df
+m = 5
+categorical.encoding = "onehot"
+device = "cpu"
+epochs = 5
+batch.size = 500
+early.stopping.epochs = 5
+subsample = 0.7
+dae.params = list(shuffle = TRUE, drop.last = FALSE,
+                  input.dropout = 0.2, hidden.dropout = 0.5,
+                  optimizer = "adamW", learning.rate = 0.0001,
+                  weight.decay = 0.002, momentum = 0, eps = 1e-07,
+                  encoder.structure = c(128, 64, 32), latent.dim = 16,
+                  decoder.structure = c(32, 64, 128),act = "elu",
+                  init.weight = "xavier.normal", scaler = "robust",initial.imp="mean",lower=0.25,upper=0.75)
+pmm.params = list(pmm.type = "auto", pmm.k = 5,
+                  pmm.link = "prob", pmm.save.vars = NULL)
+loss.na.scale = FALSE
+verbose = TRUE
+print.every.n = 1
+save.model = FALSE
+path = file.path(tempdir(), "midaemodel.pt")
 
 #usethis::use_news_md()
 
@@ -80,7 +134,7 @@ midae.imp<-midae(data=withNA.df, m = 5,
                                    weight.decay = 0.002, momentum = 0, eps = 1e-07,
                                    encoder.structure = c(128, 64, 32), latent.dim = 16,
                                    decoder.structure = c(32, 64, 128),act = "elu",
-                                   init.weight = "xavier.normal", scaler = "robust",initial.imp="mean",lower=0.25,upper=0.75),
+                                   init.weight = "he.normal", scaler = "robust",initial.imp="mean",lower=0.25,upper=0.75),
                  pmm.params = list(pmm.type = "auto", pmm.k = 5,
                                    pmm.link = "prob", pmm.save.vars = NULL),
                  loss.na.scale = FALSE,

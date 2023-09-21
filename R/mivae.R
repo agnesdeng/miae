@@ -70,11 +70,18 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
   beta <- vae.params$beta
   input.dropout <- vae.params$input.dropout
   hidden.dropout <- vae.params$hidden.dropout
+
   optimizer <- vae.params$optimizer
   learning.rate <- vae.params$learning.rate
   weight.decay <- vae.params$weight.decay
   momentum <- vae.params$momentum
   eps <- vae.params$eps
+  dampening <- vae.params$dampening
+  rho <- vae.params$rho
+  alpha <- vae.params$alpha
+  learning.rate.decay <- vae.params$learning.rate.decay
+
+
   encoder.structure <- vae.params$encoder.structure
   latent.dim <- vae.params$latent.dim
   decoder.structure<- vae.params$decoder.structure
@@ -245,16 +252,25 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
   if (init.weight == "he.normal") {
-    model$apply(init_he_normal, mode = "fan_in", slope = 0, nonlinearity = "relu")
+    model$apply(init_he_normal)
   }else if (init.weight == "he.uniform") {
-    model$apply(init_he_uniform, mode = "fan_in", slope = 0, nonlinearity = "relu")
+    model$apply(init_he_uniform)
+  }else if (init.weight == "he.normal.elu") {
+    model$apply(init_he_normal_elu)
+  }else if (init.weight == "he.normal.selu") {
+    model$apply(init_he_normal_selu)
+  }else if (init.weight == "he.normal.leaky.relu") {
+    model$apply(init_he_normal_leaky.relu)
   }else if (init.weight == "xavier.normal") {
-    model$apply(init_xavier_normal,gain=1)
+    model$apply(init_xavier_normal)
   } else if (init.weight == "xavier.uniform") {
-    model$apply(init_xavier_uniform,gain=1)
+    model$apply(init_xavier_uniform)
   } else if (init.weight == "xavier.midas") {
-    model$apply(init_xavier_midas,gain=1 / sqrt(2))
+    model$apply(init_xavier_midas)
+  }else{
+    stop("This weight initialization is not supported yet")
   }
+
 
 
 
@@ -272,13 +288,18 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
   # choose optimizer & learning rate
-  if (optimizer == "adam") {
-    optimizer <- torch::optim_adam(model$parameters, lr = learning.rate, weight_decay = weight.decay)
+  if (optimizer == "adamW") {
+    optimizer <- optim_adamw(model$parameters, lr = learning.rate, eps = eps, weight_decay = weight.decay)
   } else if (optimizer == "sgd") {
-    optimizer <- torch::optim_sgd(model$parameters, lr = learning.rate, momentum = momentum, weight_decay = weight.decay)
-  } else if (optimizer == "adamW") {
-    # torch default eps = 1e-08, tensorfolow default eps =1e-07
-    optimizer <- torchopt::optim_adamw(model$parameters, lr = learning.rate, weight_decay = weight.decay, eps = eps)
+    optimizer <- optim_sgd(model$parameters, lr = learning.rate, momentum = momentum, dampening = dampening, weight_decay = weight.decay)
+  } else if (optimizer == "adam") {# torch default eps = 1e-08, tensorfolow default eps =1e-07
+    optimizer <- optim_adam(model$parameters, lr = learning.rate, eps = eps, weight_decay = weight.decay)
+  } else if (optimizer == "adadelta") {
+    optimizer <- optim_adadelta(model$parameters, lr = learning.rate, rho = rho, eps = eps, weight_decay = weight.decay)
+  } else if (optimizer == "adagrad") {
+    optimizer <- optim_adagrad(model$parameters, lr = learning.rate, lr_decay = learning.rate.decay, eps = eps, weight_decay = weight.decay)
+  } else if (optimizer == "rmsprop") {
+    optimizer <- optim_rmsprop(model$parameters, lr = learning.rate, alpha = alpha, eps = eps, weight_decay = weight.decay, momentum = momentum)
   }
 
 
@@ -1070,12 +1091,12 @@ vae_pmm_default <-function(pmm.type = NULL, pmm.k = 5, pmm.link = "prob", pmm.sa
 #' @description Auxiliary function for setting up the default vae-related hyperparameters for mivae
 vae_default<-function(shuffle = TRUE, drop.last = FALSE,
                       beta = 1, input.dropout = 0, hidden.dropout = 0,
-                      optimizer = "adamW", learning.rate = 0.0001, weight.decay = 0.002, momentum = 0, eps = 1e-07,
-                      encoder.structure = c(128, 64, 32), latent.dim = 16, decoder.structure = c(32, 64, 128),
-                      act = "elu", init.weight = "xavier.normal", scaler = "standard",initial.imp = "sample", lower=0.25,upper=0.75){
+                      optimizer = "adamW", learning.rate = 0.001, weight.decay = 0.01, momentum = 0, dampening = 0, eps = 1e-08, rho = 0.9, alpha = 0.99, learning.rate.decay = 0,
+                      encoder.structure = c(256, 128, 64), latent.dim = 8, decoder.structure = c(64, 128, 256),
+                      act = "relu", init.weight = "he.normal", scaler = "standard",initial.imp = "sample", lower=0.25,upper=0.75){
   list(shuffle = shuffle, drop.last = drop.last,
        beta = beta, input.dropout = input.dropout, hidden.dropout = hidden.dropout,
-       optimizer = optimizer, learning.rate = learning.rate, weight.decay = weight.decay, momentum = momentum, eps = eps,
+       optimizer = optimizer, learning.rate = learning.rate, weight.decay = weight.decay, momentum = momentum, dampening = dampening, eps = eps, rho = rho, alpha = alpha, learning.rate.decay = learning.rate.decay,
        encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure,
        act = act, init.weight = init.weight, scaler = scaler,initial.imp = initial.imp, lower=lower, upper=upper)
 }
