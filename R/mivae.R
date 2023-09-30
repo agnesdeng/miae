@@ -477,7 +477,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
       # Total cost (reconstruction loss)
-      cost <- sum(total.num.cost, total.bin.cost, total.multi.cost)
+      cost <- sum(total.num.cost, total.logi.cost,total.bin.cost, total.multi.cost)
 
 
       # KL ----------------------------------------------------------------------
@@ -674,7 +674,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
         # Total cost
-        cost <- sum(total.num.cost, total.bin.cost, total.multi.cost)
+        cost <- sum(total.num.cost, total.logi.cost, total.bin.cost, total.multi.cost)
 
         # KL divergence
         mu <- Out$mu
