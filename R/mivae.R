@@ -1093,7 +1093,7 @@ vae_default<-function(shuffle = TRUE, drop.last = FALSE,
                       beta = 1, input.dropout = 0, hidden.dropout = 0,
                       optimizer = "adamW", learning.rate = 0.001, weight.decay = 0.01, momentum = 0, dampening = 0, eps = 1e-08, rho = 0.9, alpha = 0.99, learning.rate.decay = 0,
                       encoder.structure = c(256, 128, 64), latent.dim = 8, decoder.structure = c(64, 128, 256),
-                      act = "relu", init.weight = "he.normal", scaler = "standard",initial.imp = "sample", lower=0.25,upper=0.75){
+                      act = "elu", init.weight = "he.normal.elu", scaler = "standard",initial.imp = "sample", lower=0.25,upper=0.75){
   list(shuffle = shuffle, drop.last = drop.last,
        beta = beta, input.dropout = input.dropout, hidden.dropout = hidden.dropout,
        optimizer = optimizer, learning.rate = learning.rate, weight.decay = weight.decay, momentum = momentum, dampening = dampening, eps = eps, rho = rho, alpha = alpha, learning.rate.decay = learning.rate.decay,
