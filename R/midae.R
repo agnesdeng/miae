@@ -57,6 +57,9 @@ midae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
                   loss.na.scale = FALSE,
                   verbose = TRUE, print.every.n = 1,
                   save.model = FALSE, path = NULL) {
+   if(verbose){
+     print(device)
+   }
 
    device <- torch_device(device)
 
