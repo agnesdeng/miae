@@ -1,7 +1,7 @@
 #' postprocess data
 #' @param output.data raw output data from autoencoders
 #' @param pre.obj preprocess data object
-#' @export
+#' @param scaler scaler used to scale the data
 postprocess <- function(output.data, pre.obj, scaler) {
 
 
@@ -87,7 +87,6 @@ postprocess <- function(output.data, pre.obj, scaler) {
 #' @param onehot.data data with onehot features
 #' @param pre.obj preprocess data object
 #' @importFrom torch nn_sigmoid nn_softmax torch_argmax
-#' @export
 rev_onehot <- function(onehot.data, pre.obj) {
 
   if (length(pre.obj$num) >= 1) {

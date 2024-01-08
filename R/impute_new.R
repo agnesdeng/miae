@@ -3,8 +3,8 @@
 #' @param  newdata A data frame, tibble or data.table. New data with missing values.
 #' @param  pmm.k The number of donors for predictive mean matching. If \code{NULL} (the default), the \code{pmm.k} value in the saved imputer object will be used.
 #' @param  m The number of imputed datasets. If \code{NULL} (the default), the \code{m} value in the saved imputer object will be used.
+#' @param  verbose A logical value indicating whether to print the progress.
 #' @return A list of \code{m} imputed datasets for new data.
-#' @importFrom torch dataloader torch_load dataloader_make_iter dataloader_next
 #' @export
 impute_new <- function(object, newdata, pmm.k = NULL, m = NULL, verbose = FALSE) {
   # the saved model
@@ -14,15 +14,16 @@ impute_new <- function(object, newdata, pmm.k = NULL, m = NULL, verbose = FALSE)
   params <- object$params
 
   scaler <- params$scaler
-
+  lower <- params$lower
+  upper <- params$upper
   categorical.encoding<-params$categorical.encoding
+  initial.imp<-params$initial.imp
 
-
-  pre.obj <- preprocess(newdata, scaler = scaler, categorical.encoding = categorical.encoding)
+  pre.obj <- preprocess(newdata, scaler = scaler, lower = lower, upper = upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
 
   #torch.data <- torch_dataset(newdata, scaler = scaler, categorical.encoding = categorical.encoding)
 
-  data.tensor<-torch_dataset(newdata, scaler = scaler, categorical.encoding = categorical.encoding)
+  data.tensor<-torch_dataset(newdata, scaler = scaler,lower = lower, upper = upper,  categorical.encoding = categorical.encoding, initial.imp = initial.imp)
   #
 
   n.samples <- nrow(newdata)
@@ -121,7 +122,7 @@ impute_new <- function(object, newdata, pmm.k = NULL, m = NULL, verbose = FALSE)
 
 
 
-  model <- torch::torch_load(path)
+  model <- torch_load(path)
 
   model$eval()
 

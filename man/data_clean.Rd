@@ -18,6 +18,7 @@ A preliminary cleaned dataset
 Check some common errors of a raw dataset and return a suitable dataset to be fed into the imputer. Note that this function is just a preliminary check. It will not guarantee the output dataset is fully cleaned.
 }
 \examples{
+data(nhanes3)
 rawdata <- nhanes3
 
 rawdata[4, 4] <- NaN

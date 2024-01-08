@@ -8,6 +8,8 @@ decile_scaler(data, initial.imp = "sample")
 }
 \arguments{
 \item{data}{A data frame or tibble}
+
+\item{initial.imp}{The method for initial imputation. Can be "mean", "median" or "sample" (default).}
 }
 \description{
 scale a dataset using decile and return a scaled dataframe, the 1st decile and the 9th decile of each column

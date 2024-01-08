@@ -2,19 +2,22 @@
 % Please edit documentation in R/mivae.R
 \name{mivae}
 \alias{mivae}
-\title{multiple imputation through variational autoencoders with dropout}
+\title{multiple imputation through variational autoencoders}
 \usage{
 mivae(
   data,
   m = 5,
-  categorical.encoding = "embeddings",
+  categorical.encoding = "onehot",
   device = "cpu",
-  epochs = 5,
-  batch.size = 32,
+  epochs = 100,
+  batch.size = 512,
   subsample = 1,
   early.stopping.epochs = 1,
   vae.params = list(),
-  pmm.params = list(),
+  pmm.type = NULL,
+  pmm.k = 5,
+  pmm.link = "prob",
+  pmm.save.vars = NULL,
   loss.na.scale = FALSE,
   verbose = TRUE,
   print.every.n = 1,
@@ -23,87 +26,60 @@ mivae(
 )
 }
 \arguments{
-\item{data}{A data frame, tibble or data table with missing values.}
+\item{data}{A \code{data.frame}, \code{tibble} or \code{data.table} with missing values.}
 
-\item{m}{The number of imputed datasets.}
+\item{m}{The number of imputed datasets. Default: 5.}
 
-\item{categorical.encoding}{The method for representing multi-class categorical features. Can be either "embeddings" or "onehot".}
+\item{categorical.encoding}{The method for representing multi-class categorical features. Can be either \code{"embeddings"} or \code{"onehot"} (default).}
 
-\item{device}{Device to use. Either "cpu" or "cuda" for GPU.}
+\item{device}{Device to use. Either \code{"cpu"} (default) or \code{"cuda"} for GPU.}
 
-\item{epochs}{The number of training epochs (iterations).}
+\item{epochs}{The number of training epochs (iterations). Default: 100.}
 
-\item{batch.size}{The size of samples in each batch. Default: 32.}
+\item{batch.size}{The size of samples in each batch. Default: 512.}
 
 \item{subsample}{The subsample ratio of training data. Default: 1.}
 
-\item{early.stopping.epochs}{An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.}
+\item{early.stopping.epochs}{An integer value \code{k}. The training of mivae will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample} is less than 1. Default: 1.}
 
-\item{loss.na.scale}{Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.}
-
-\item{verbose}{Whether or not to print training loss information. Default: TRUE.}
-
-\item{print.every.n}{If verbose is set to TRUE, print out training loss for every n epochs.}
-
-\item{save.model}{Whether or not to save the imputation model. Default: FALSE.}
-
-\item{path}{The path where the final imputation model will be saved.}
-
-\item{beta}{A regularized parameter. Default: 1.}
+\item{vae.params}{A list of parameters for variational autoencoders. See the documentation for the function \code{\link[=vae_default]{vae_default()}} for details.}
 
 \item{pmm.type}{The type of predictive mean matching (PMM). Possible values:
 \itemize{
-\item \code{NULL}: Imputations without PMM;
+\item \code{NULL} (default): Imputations without PMM;
 \item \code{0}: Imputations with PMM type 0;
 \item \code{1}: Imputations with PMM type 1;
 \item \code{2}: Imputations with PMM type 2;
-\item \code{"auto"} (Default): Imputations with PMM type 2 for numeric/integer variables; imputations without PMM for categorical variables.
+\item \code{"auto"}: Imputations with PMM type 2 for numeric/integer variables; imputations without PMM for categorical variables.
 }}
 
 \item{pmm.k}{The number of donors for predictive mean matching. Default: 5}
 
-\item{pmm.link}{The link for predictive mean matching in binary variables
+\item{pmm.link}{The link for predictive mean matching in binary variables:
 \itemize{
-\item \code{"prob"} (Default): use probabilities;
+\item \code{"prob"} (default): use probabilities;
 \item \code{"logit"}: use logit values.
 }}
 
 \item{pmm.save.vars}{The names of variables whose predicted values of observed entries will be saved. Only use for PMM.}
 
-\item{drop.last}{Whether or not to drop the last batch. Default: FALSE}
+\item{loss.na.scale}{Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: \code{FALSE}.}
 
-\item{shuffle}{Whether or not to shuffle training data. Default: TRUE}
+\item{verbose}{Whether or not to print training loss information. Default: \code{TRUE}.}
 
-\item{input.dropout}{The dropout probability of the input layer.}
+\item{print.every.n}{If \code{verbose} is set to \code{TRUE}, print out training loss for every n epochs. Default: 1.}
 
-\item{hidden.dropout}{The dropout probability of the hidden layers.}
+\item{save.model}{Whether or not to save the imputation model. Default: \code{FALSE}.}
 
-\item{optimizer}{The name of the optimizer. Options are : "adamW" (default), "adam" and "sgd".}
-
-\item{learning.rate}{The learning rate. The default value is 0.001.}
-
-\item{weight.decay}{Weight decay (L2 penalty). The default value is 0.}
-
-\item{momentum}{Parameter for "sgd" optimizer. It is used for accelerating SGD in the relevant direction and dampens oscillations.}
-
-\item{eps}{A small positive value used to prevent division by zero for the "adamW" optimizer. Default: 1e-07.}
-
-\item{encoder.structure}{A vector indicating the structure of encoder. Default: c(128,64,32)}
-
-\item{latent.dim}{The size of latent layer. The default value is 16.}
-
-\item{decoder.structure}{A vector indicating the structure of decoder. Default: c(32,64,128)}
-
-\item{act}{The name of activation function. Can be: "relu", "elu", "leaky.relu", "tanh", "sigmoid" and "identity".}
-
-\item{init.weight}{Techniques for weights initialization. Can be Can be "he.normal","he.uniform", "xavier.uniform", "xavier.normal" or "xavier.midas".}
-
-\item{scaler}{The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".}
+\item{path}{The path where the final imputation model will be saved.}
 }
 \description{
-multiple imputation through variational autoencoders with dropout
+This function is used to generate multiply-imputed datasets using variational autoencoders with dropout, early stopping and predictive mean matching (PMM).
 }
 \examples{
 withNA.df <- createNA(data = iris, p = 0.2)
-imputed.data <- mivae(data = withNA.df, m = 5, epochs = 5, path = file.path(tempdir(), "mivaemodel.pt"))
+imputed.data <- mivae(
+  data = withNA.df, m = 5, epochs = 5, batch.size = 32,
+  path = file.path(tempdir(), "mivaemodel.pt")
+)
 }

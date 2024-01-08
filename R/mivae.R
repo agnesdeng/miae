@@ -1,74 +1,61 @@
-#' multiple imputation through variational autoencoders with dropout
-#' @param data A data frame, tibble or data table with missing values.
-#' @param m The number of imputed datasets.
-#' @param beta A regularized parameter. Default: 1.
-#' @param categorical.encoding The method for representing multi-class categorical features. Can be either "embeddings" or "onehot".
-#' @param device Device to use. Either "cpu" or "cuda" for GPU.
+#' multiple imputation through variational autoencoders
+#' @description This function is used to generate multiply-imputed datasets using variational autoencoders with dropout, early stopping and predictive mean matching (PMM).
+#' @param data A \code{data.frame}, \code{tibble} or \code{data.table} with missing values.
+#' @param m The number of imputed datasets. Default: 5.
+#' @param categorical.encoding The method for representing multi-class categorical features. Can be either \code{"embeddings"} or \code{"onehot"} (default).
+#' @param device Device to use. Either \code{"cpu"} (default) or \code{"cuda"} for GPU.
+#' @param epochs The number of training epochs (iterations). Default: 100.
+#' @param batch.size The size of samples in each batch. Default: 512.
+#' @param subsample The subsample ratio of training data. Default: 1.
+#' @param early.stopping.epochs An integer value \code{k}. The training of mivae will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample} is less than 1. Default: 1.
+#' @param vae.params A list of parameters for variational autoencoders. See the documentation for the function \code{\link[=vae_default]{vae_default()}} for details.
 #' @param pmm.type The type of predictive mean matching (PMM). Possible values:
 #' \itemize{
-#'  \item \code{NULL}: Imputations without PMM;
+#'  \item \code{NULL} (default): Imputations without PMM;
 #'  \item \code{0}: Imputations with PMM type 0;
 #'  \item \code{1}: Imputations with PMM type 1;
 #'  \item \code{2}: Imputations with PMM type 2;
-#'  \item \code{"auto"} (Default): Imputations with PMM type 2 for numeric/integer variables; imputations without PMM for categorical variables.
+#'  \item \code{"auto"}: Imputations with PMM type 2 for numeric/integer variables; imputations without PMM for categorical variables.
 #' }
 #' @param pmm.k The number of donors for predictive mean matching. Default: 5
-#' @param pmm.link The link for predictive mean matching in binary variables
+#' @param pmm.link The link for predictive mean matching in binary variables:
 #' \itemize{
-#'  \item \code{"prob"} (Default): use probabilities;
+#'  \item \code{"prob"} (default): use probabilities;
 #'  \item \code{"logit"}: use logit values.
 #' }
 #' @param pmm.save.vars The names of variables whose predicted values of observed entries will be saved. Only use for PMM.
-#' @param epochs The number of training epochs (iterations).
-#' @param batch.size The size of samples in each batch. Default: 32.
-#' @param drop.last Whether or not to drop the last batch. Default: FALSE
-#' @param subsample The subsample ratio of training data. Default: 1.
-#' @param shuffle Whether or not to shuffle training data. Default: TRUE
-#' @param input.dropout The dropout probability of the input layer.
-#' @param hidden.dropout The dropout probability of the hidden layers.
-#' @param optimizer The name of the optimizer. Options are : "adamW" (default), "adam" and "sgd".
-#' @param learning.rate The learning rate. The default value is 0.001.
-#' @param weight.decay Weight decay (L2 penalty). The default value is 0.
-#' @param momentum Parameter for "sgd" optimizer. It is used for accelerating SGD in the relevant direction and dampens oscillations.
-#' @param eps A small positive value used to prevent division by zero for the "adamW" optimizer. Default: 1e-07.
-#' @param encoder.structure A vector indicating the structure of encoder. Default: c(128,64,32)
-#' @param latent.dim The size of latent layer. The default value is 16.
-#' @param decoder.structure A vector indicating the structure of decoder. Default: c(32,64,128)
-#' @param act The name of activation function. Can be: "relu", "elu", "leaky.relu", "tanh", "sigmoid" and "identity".
-#' @param init.weight Techniques for weights initialization. Can be Can be "he.normal","he.uniform", "xavier.uniform", "xavier.normal" or "xavier.midas".
-#' @param scaler The name of scaler for transforming numeric features. Can be "standard", "minmax" ,"decile" or "none".
-#' @param early.stopping.epochs An integer value \code{k}. Mivae training will stop if the validation performance has not improved for \code{k} epochs, only used when \code{subsample}<1. Default: 10.
-#' @param loss.na.scale Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: FALSE.
-#' @param verbose Whether or not to print training loss information. Default: TRUE.
-#' @param print.every.n If verbose is set to TRUE, print out training loss for every n epochs.
-#' @param save.model Whether or not to save the imputation model. Default: FALSE.
+#' @param loss.na.scale Whether to multiply the ratio of missing values in  a feature to calculate the loss function. Default: \code{FALSE}.
+#' @param verbose Whether or not to print training loss information. Default: \code{TRUE}.
+#' @param print.every.n If \code{verbose} is set to \code{TRUE}, print out training loss for every n epochs. Default: 1.
+#' @param save.model Whether or not to save the imputation model. Default: \code{FALSE}.
 #' @param path The path where the final imputation model will be saved.
-#' @importFrom torch dataloader nn_mse_loss nn_bce_with_logits_loss nn_cross_entropy_loss optim_adam optim_sgd torch_save torch_load torch_argmax dataloader_make_iter dataloader_next
-#' @importFrom torchopt optim_adamw
 #' @export
 #' @examples
 #' withNA.df <- createNA(data = iris, p = 0.2)
-#' imputed.data <- mivae(data = withNA.df, m = 5, epochs = 5, path = file.path(tempdir(), "mivaemodel.pt"))
-mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cpu",
-                  epochs = 5, batch.size = 32,
+#' imputed.data <- mivae(
+#'   data = withNA.df, m = 5, epochs = 5, batch.size = 32,
+#'   path = file.path(tempdir(), "mivaemodel.pt")
+#' )
+mivae <- function(data, m = 5, categorical.encoding = "onehot", device = "cpu",
+                  epochs = 100, batch.size = 512,
                   subsample = 1,
                   early.stopping.epochs = 1,
-                  vae.params=list(),
-                  pmm.params=list(),
+                  vae.params = list(),
+                  pmm.type = NULL, pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL,
                   loss.na.scale = FALSE,
                   verbose = TRUE, print.every.n = 1,
                   save.model = FALSE, path = NULL) {
-  if(verbose){
+  if (verbose) {
     print(device)
   }
   device <- torch_device(device)
 
   vae.params <- do.call("vae_default", vae.params)
-  pmm.params <- do.call("vae_pmm_default", pmm.params)
+  #pmm.params <- do.call("vae_pmm_default", pmm.params)
 
 
   shuffle <- vae.params$shuffle
-  drop.last<- vae.params$drop.last
+  drop.last <- vae.params$drop.last
   beta <- vae.params$beta
   input.dropout <- vae.params$input.dropout
   hidden.dropout <- vae.params$hidden.dropout
@@ -86,20 +73,20 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
   encoder.structure <- vae.params$encoder.structure
   latent.dim <- vae.params$latent.dim
-  decoder.structure<- vae.params$decoder.structure
+  decoder.structure <- vae.params$decoder.structure
   act <- vae.params$act
   init.weight <- vae.params$init.weight
   scaler <- vae.params$scaler
-  lower<-vae.params$lower
-  upper<-vae.params$upper
-  initial.imp<-vae.params$initial.imp
+  lower <- vae.params$lower
+  upper <- vae.params$upper
+  initial.imp <- vae.params$initial.imp
 
 
 
-  pmm.type <- pmm.params$pmm.type
-  pmm.k <- pmm.params$pmm.k
-  pmm.link <- pmm.params$pmm.link
-  pmm.save.vars <- pmm.params$pmm.save.vars
+  #pmm.type <- pmm.params$pmm.type
+  #pmm.k <- pmm.params$pmm.k
+  #pmm.link <- pmm.params$pmm.link
+  #pmm.save.vars <- pmm.params$pmm.save.vars
 
 
   if (subsample == 1 & early.stopping.epochs > 1) {
@@ -120,17 +107,17 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
   }
 
 
-  pre.obj <- preprocess(data, scaler = scaler, lower=lower,upper=upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
+  pre.obj <- preprocess(data, scaler = scaler, lower = lower, upper = upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
 
 
-  cardinalities<-pre.obj$cardinalities
-  embedding.dim<-pre.obj$embedding.dim
+  cardinalities <- pre.obj$cardinalities
+  embedding.dim <- pre.obj$embedding.dim
 
-  #n.num+n.logi+n.bin
-  n.others <- length(origin.names)-length(cardinalities)
+  # n.num+n.logi+n.bin
+  n.others <- length(origin.names) - length(cardinalities)
 
 
-  data.tensor<-torch_dataset(data, scaler = scaler, lower=lower,upper=upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
+  data.tensor <- torch_dataset(data, scaler = scaler, lower = lower, upper = upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
 
   n.samples <- nrow(data)
 
@@ -188,14 +175,16 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
   # yhatobs.list #need to amend yhatobs_pmm1 to includes vae
   if (isTRUE(pmm.type == 1)) {
-    yhatobs.list <- yhatobs_pmm1(module="vae",
-                                 data = data, categorical.encoding = categorical.encoding, device = device, na.loc = na.loc, na.vars = na.vars, extra.vars = extra.vars, pmm.link = pmm.link,
-                                 epochs = epochs, batch.size = batch.size, drop.last = drop.last, shuffle = shuffle,
-                                 optimizer = optimizer, learning.rate = learning.rate, weight.decay = weight.decay, momentum = momentum, eps = eps,
-                                 encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure,
-                                 act = act, init.weight = init.weight, scaler = scaler,initial.imp = initial.imp,lower=lower, upper=upper,
-                                 loss.na.scale = loss.na.scale,
-                                 verbose = verbose, print.every.n = print.every.n
+    yhatobs.list <- yhatobs_pmm1(
+      module = "vae",
+      data = data, categorical.encoding = categorical.encoding, device = device, na.loc = na.loc, na.vars = na.vars, extra.vars = extra.vars, pmm.link = pmm.link,
+      epochs = epochs, batch.size = batch.size, shuffle = shuffle, drop.last = drop.last,
+      optimizer = optimizer, learning.rate = learning.rate, weight.decay = weight.decay,
+      momentum = momentum, dampening = dampening, eps = eps, rho = rho, alpha = alpha, learning.rate.decay = learning.rate.decay,
+      encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure,
+      act = act, init.weight = init.weight, scaler = scaler, initial.imp = initial.imp, lower = lower, upper = upper,
+      loss.na.scale = loss.na.scale,
+      verbose = verbose, print.every.n = print.every.n
     )
   } else if (is.null(pmm.type)) {
     yhatobs.list <- NULL
@@ -210,19 +199,13 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
   if (subsample == 1) {
-
     train.samples <- n.samples
     train.idx <- 1:n.samples
-    train.batches<-batch_set(n.samples = train.samples, batch.size = batch.size, drop.last = drop.last)
-    train.batch.set<-train.batches$batch.set
-    train.num.batches<-train.batches$num.batches
-    train.original.data<-data.tensor
-
-
-
-
+    train.batches <- batch_set(n.samples = train.samples, batch.size = batch.size, drop.last = drop.last)
+    train.batch.set <- train.batches$batch.set
+    train.num.batches <- train.batches$num.batches
+    train.original.data <- data.tensor
   } else {
-
     train.idx <- sample(1:n.samples, size = floor(subsample * n.samples), replace = FALSE)
     valid.idx <- setdiff(1:n.samples, train.idx)
 
@@ -231,45 +214,47 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
 
-    train.original.data<-torch_dataset_idx(data, idx=train.idx, scaler = scaler, lower=lower,upper=upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
-    valid.original.data<-torch_dataset_idx(data, idx=valid.idx, scaler = scaler, lower=lower,upper=upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
+    train.original.data <- torch_dataset_idx(data, idx = train.idx, scaler = scaler, lower = lower, upper = upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
+    valid.original.data <- torch_dataset_idx(data, idx = valid.idx, scaler = scaler, lower = lower, upper = upper, categorical.encoding = categorical.encoding, initial.imp = initial.imp)
 
-    train.batches<-batch_set(n.samples = train.samples, batch.size = batch.size, drop.last = drop.last)
-    train.batch.set<-train.batches$batch.set
-    train.num.batches<-train.batches$num.batches
+    train.batches <- batch_set(n.samples = train.samples, batch.size = batch.size, drop.last = drop.last)
+    train.batch.set <- train.batches$batch.set
+    train.num.batches <- train.batches$num.batches
 
-    valid.batches<-batch_set(n.samples = valid.samples, batch.size = batch.size, drop.last = drop.last)
-    valid.batch.set<-valid.batches$batch.set
-    valid.num.batches<-valid.batches$num.batches
+    valid.batches <- batch_set(n.samples = valid.samples, batch.size = batch.size, drop.last = drop.last)
+    valid.batch.set <- valid.batches$batch.set
+    valid.num.batches <- valid.batches$num.batches
   }
 
 
   # mivae model -------------------------------------------------------------
 
 
-  model <- vae(categorical.encoding = categorical.encoding, n.others = n.others, cardinalities = cardinalities, embedding.dim = embedding.dim,
-               input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure, act = act)
+  model <- vae(
+    categorical.encoding = categorical.encoding, n.others = n.others, cardinalities = cardinalities, embedding.dim = embedding.dim,
+    input.dropout = input.dropout, hidden.dropout = hidden.dropout, encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure, act = act
+  )
 
-  model <-model$to(device=device)
+  model <- model$to(device = device)
 
 
   if (init.weight == "he.normal") {
     model$apply(init_he_normal)
-  }else if (init.weight == "he.uniform") {
+  } else if (init.weight == "he.uniform") {
     model$apply(init_he_uniform)
-  }else if (init.weight == "he.normal.elu") {
+  } else if (init.weight == "he.normal.elu") {
     model$apply(init_he_normal_elu)
-  }else if (init.weight == "he.normal.selu") {
+  } else if (init.weight == "he.normal.selu") {
     model$apply(init_he_normal_selu)
-  }else if (init.weight == "he.normal.leaky.relu") {
+  } else if (init.weight == "he.normal.leaky.relu") {
     model$apply(init_he_normal_leaky.relu)
-  }else if (init.weight == "xavier.normal") {
+  } else if (init.weight == "xavier.normal") {
     model$apply(init_xavier_normal)
   } else if (init.weight == "xavier.uniform") {
     model$apply(init_xavier_uniform)
   } else if (init.weight == "xavier.midas") {
     model$apply(init_xavier_midas)
-  }else{
+  } else {
     stop("This weight initialization is not supported yet")
   }
 
@@ -281,20 +266,20 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
   # define the loss function
-  num_loss <- torch::nn_mse_loss(reduction = "mean")
-  logi_loss <- torch::nn_bce_with_logits_loss(reduction = "mean")
-  bin_loss <- torch::nn_bce_with_logits_loss(reduction = "mean")
-  multi_loss <- torch::nn_cross_entropy_loss(reduction = "mean")
+  num_loss <- nn_mse_loss(reduction = "mean")
+  logi_loss <- nn_bce_with_logits_loss(reduction = "mean")
+  bin_loss <- nn_bce_with_logits_loss(reduction = "mean")
+  multi_loss <- nn_cross_entropy_loss(reduction = "mean")
 
 
 
 
   # choose optimizer & learning rate
   if (optimizer == "adamW") {
-    optimizer <- optim_adamw(model$parameters, lr = learning.rate, eps = eps, weight_decay = weight.decay)
+    optimizer <- torchopt::optim_adamw(model$parameters, lr = learning.rate, eps = eps, weight_decay = weight.decay)
   } else if (optimizer == "sgd") {
     optimizer <- optim_sgd(model$parameters, lr = learning.rate, momentum = momentum, dampening = dampening, weight_decay = weight.decay)
-  } else if (optimizer == "adam") {# torch default eps = 1e-08, tensorfolow default eps =1e-07
+  } else if (optimizer == "adam") { # torch default eps = 1e-08, tensorfolow default eps =1e-07
     optimizer <- optim_adam(model$parameters, lr = learning.rate, eps = eps, weight_decay = weight.decay)
   } else if (optimizer == "adadelta") {
     optimizer <- optim_adadelta(model$parameters, lr = learning.rate, rho = rho, eps = eps, weight_decay = weight.decay)
@@ -306,7 +291,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
   # epochs: number of iterations
-  if(verbose){
+  if (verbose) {
     print("Running mivae().")
   }
 
@@ -321,36 +306,34 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
     train.loss <- 0
 
 
-    #rearrange all the data in each epoch
-    if(shuffle){
-      permute<-torch::torch_randperm(train.samples)+1L
-
-    }else{
-      permute<-torch_tensor(1:train.samples)
+    # rearrange all the data in each epoch
+    if (shuffle) {
+      permute <- torch_randperm(train.samples) + 1L
+    } else {
+      permute <- torch_tensor(1:train.samples)
     }
 
-    train.data<-train.original.data[permute]
+    train.data <- train.original.data[permute]
 
-    for(i in 1:train.num.batches){
+    for (i in 1:train.num.batches) {
+      b <- list()
+      b.index <- train.batch.set[[i]]
+      b$data <- lapply(train.data, function(x) x[b.index])
+      b$index <- train.idx[as.array(permute)[b.index]]
 
-      b<-list()
-      b.index<-train.batch.set[[i]]
-      b$data<-lapply(train.data, function(x) x[b.index])
-      b$index<-train.idx[as.array(permute)[b.index]]
-
-      num.tensor<-move_to_device(tensor=b$data$num.tensor, device=device)
-      logi.tensor<-move_to_device(tensor=b$data$logi.tensor, device=device)
-      bin.tensor<-move_to_device(tensor=b$data$bin.tensor, device=device)
-      multi.tensor<-move_to_device(tensor=b$data$multi.tensor, device=device)
-      onehot.tensor<-move_to_device(tensor=b$data$onehot.tensor, device=device)
-
+      num.tensor <- move_to_device(tensor = b$data$num.tensor, device = device)
+      logi.tensor <- move_to_device(tensor = b$data$logi.tensor, device = device)
+      bin.tensor <- move_to_device(tensor = b$data$bin.tensor, device = device)
+      multi.tensor <- move_to_device(tensor = b$data$multi.tensor, device = device)
+      onehot.tensor <- move_to_device(tensor = b$data$onehot.tensor, device = device)
 
 
-      if(categorical.encoding=="embeddings"){
-        Out <- model(num.tensor=num.tensor,logi.tensor=logi.tensor,bin.tensor=bin.tensor, cat.tensor=multi.tensor)
-      }else if(categorical.encoding=="onehot"){
-        Out <- model(num.tensor=num.tensor,logi.tensor=logi.tensor,bin.tensor=bin.tensor, cat.tensor=onehot.tensor)
-      }else{
+
+      if (categorical.encoding == "embeddings") {
+        Out <- model(num.tensor = num.tensor, logi.tensor = logi.tensor, bin.tensor = bin.tensor, cat.tensor = multi.tensor)
+      } else if (categorical.encoding == "onehot") {
+        Out <- model(num.tensor = num.tensor, logi.tensor = logi.tensor, bin.tensor = bin.tensor, cat.tensor = onehot.tensor)
+      } else {
         stop(cat('categorical.encoding can only be either "embeddings" or "onehot".\n'))
       }
 
@@ -360,7 +343,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
         names(num.cost) <- pre.obj$num
 
         for (idx in seq_along(pre.obj$num.idx)) {
-          var<-pre.obj$num[idx]
+          var <- pre.obj$num[idx]
           obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
           num.cost[[var]] <- num_loss(input = Out$reconstrx[obs.idx, pre.obj$num.idx[[var]]], target = num.tensor[obs.idx, idx])
         }
@@ -389,9 +372,9 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
         names(logi.cost) <- pre.obj$logi
 
         for (idx in seq_along(pre.obj$logi)) {
-          var<-pre.obj$logi[idx]
+          var <- pre.obj$logi[idx]
           obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
-          logi.cost[[var]] <- logi_loss(input =  Out$reconstrx[obs.idx, pre.obj$logi.idx[[var]]], target = logi.tensor[obs.idx, idx])
+          logi.cost[[var]] <- logi_loss(input = Out$reconstrx[obs.idx, pre.obj$logi.idx[[var]]], target = logi.tensor[obs.idx, idx])
         }
 
 
@@ -421,7 +404,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
         for (idx in seq_along(pre.obj$bin)) {
-          var<-pre.obj$bin[idx]
+          var <- pre.obj$bin[idx]
           obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
           bin.cost[[var]] <- bin_loss(input = Out$reconstrx[obs.idx, pre.obj$bin.idx[[var]]], target = bin.tensor[obs.idx, idx])
         }
@@ -453,7 +436,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
         for (idx in seq_along(pre.obj$multi)) {
-          var<-pre.obj$multi[idx]
+          var <- pre.obj$multi[idx]
           obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
           multi.cost[[var]] <- multi_loss(input = Out$reconstrx[obs.idx, pre.obj$multi.idx[[var]]], target = multi.tensor[obs.idx, idx])
         }
@@ -462,7 +445,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
         if (loss.na.scale) {
           if (length(pre.obj$multi) > 1) {
             na.ratios <- colMeans(pre.obj$na.loc[, pre.obj$multi])
-            #if a column is fully observed, the contribute loss is zero. ..may not be ideal
+            # if a column is fully observed, the contribute loss is zero. ..may not be ideal
             multi.cost <- mapply(`*`, multi.cost, na.ratios)
             total.multi.cost <- do.call(sum, multi.cost)
           } else {
@@ -479,7 +462,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
       # Total cost (reconstruction loss)
-      cost <- sum(total.num.cost, total.logi.cost,total.bin.cost, total.multi.cost)
+      cost <- sum(total.num.cost, total.logi.cost, total.bin.cost, total.multi.cost)
 
 
       # KL ----------------------------------------------------------------------
@@ -504,7 +487,6 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
       batch.loss <- total.cost$item()
       train.loss <- train.loss + batch.loss
-
     }
 
 
@@ -515,39 +497,39 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
       valid.loss <- 0
 
-      #rearrange all the data in each epoch
-      if(shuffle){
-        permute<-torch::torch_randperm(valid.samples)+1L
-      }else{
-        permute<-torch_tensor(1:valid.samples)
+      # rearrange all the data in each epoch
+      if (shuffle) {
+        permute <- torch_randperm(valid.samples) + 1L
+      } else {
+        permute <- torch_tensor(1:valid.samples)
       }
 
 
-      valid.data<-valid.original.data[permute]
+      valid.data <- valid.original.data[permute]
 
       # validation loss
-      for(i in 1:valid.num.batches){
-        b<-list()
-        b.index<-valid.batch.set[[i]]
+      for (i in 1:valid.num.batches) {
+        b <- list()
+        b.index <- valid.batch.set[[i]]
 
-        b$data<-lapply(valid.data, function(x) x[b.index])
+        b$data <- lapply(valid.data, function(x) x[b.index])
 
-        #index in the original full dataset
-        b$index<-valid.idx[as.array(permute)[b.index]]
+        # index in the original full dataset
+        b$index <- valid.idx[as.array(permute)[b.index]]
 
 
 
-        num.tensor<-move_to_device(tensor=b$data$num.tensor, device=device)
-        logi.tensor<-move_to_device(tensor=b$data$logi.tensor, device=device)
-        bin.tensor<-move_to_device(tensor=b$data$bin.tensor, device=device)
-        multi.tensor<-move_to_device(tensor=b$data$multi.tensor, device=device)
-        onehot.tensor<-move_to_device(tensor=b$data$onehot.tensor, device=device)
+        num.tensor <- move_to_device(tensor = b$data$num.tensor, device = device)
+        logi.tensor <- move_to_device(tensor = b$data$logi.tensor, device = device)
+        bin.tensor <- move_to_device(tensor = b$data$bin.tensor, device = device)
+        multi.tensor <- move_to_device(tensor = b$data$multi.tensor, device = device)
+        onehot.tensor <- move_to_device(tensor = b$data$onehot.tensor, device = device)
 
-        if(categorical.encoding=="embeddings"){
-          Out <- model(num.tensor=num.tensor,logi.tensor=logi.tensor,bin.tensor=bin.tensor, cat.tensor=multi.tensor)
-        }else if(categorical.encoding=="onehot"){
-          Out <- model(num.tensor=num.tensor,logi.tensor=logi.tensor,bin.tensor=bin.tensor, cat.tensor=onehot.tensor)
-        }else{
+        if (categorical.encoding == "embeddings") {
+          Out <- model(num.tensor = num.tensor, logi.tensor = logi.tensor, bin.tensor = bin.tensor, cat.tensor = multi.tensor)
+        } else if (categorical.encoding == "onehot") {
+          Out <- model(num.tensor = num.tensor, logi.tensor = logi.tensor, bin.tensor = bin.tensor, cat.tensor = onehot.tensor)
+        } else {
           stop(cat('categorical.encoding can only be either "embeddings" or "onehot".\n'))
         }
 
@@ -558,7 +540,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
           names(num.cost) <- pre.obj$num
 
           for (idx in seq_along(pre.obj$num.idx)) {
-            var<-pre.obj$num[idx]
+            var <- pre.obj$num[idx]
             obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
             num.cost[[var]] <- num_loss(input = Out$reconstrx[obs.idx, pre.obj$num.idx[[var]]], target = num.tensor[obs.idx, idx])
           }
@@ -587,7 +569,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
           names(logi.cost) <- pre.obj$logi
 
           for (idx in seq_along(pre.obj$logi)) {
-            var<-pre.obj$logi[idx]
+            var <- pre.obj$logi[idx]
             obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
             logi.cost[[var]] <- logi_loss(input = Out$reconstrx[obs.idx, pre.obj$logi.idx[[var]]], target = logi.tensor[obs.idx, idx])
           }
@@ -618,7 +600,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
           for (idx in seq_along(pre.obj$bin)) {
-            var<-pre.obj$bin[idx]
+            var <- pre.obj$bin[idx]
             obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
             bin.cost[[var]] <- bin_loss(input = Out$reconstrx[obs.idx, pre.obj$bin.idx[[var]]], target = bin.tensor[obs.idx, idx])
           }
@@ -649,7 +631,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
           for (idx in seq_along(pre.obj$multi)) {
-            var<-pre.obj$multi[idx]
+            var <- pre.obj$multi[idx]
             obs.idx <- which(pre.obj$na.loc[as.array(b$index), var] != TRUE)
             multi.cost[[var]] <- multi_loss(input = Out$reconstrx[obs.idx, pre.obj$multi.idx[[var]]], target = multi.tensor[obs.idx, idx])
           }
@@ -698,7 +680,6 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
         batch.loss <- total.cost$item()
         valid.loss <- valid.loss + batch.loss
-
       }
     }
 
@@ -710,7 +691,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
         cat(sprintf("Loss at epoch %d: %1f\n", epoch, train.loss / train.num.batches))
       }
       if (save.model & epoch == epochs) {
-        torch::torch_save(model, path = path)
+        torch_save(model, path = path)
       }
     } else if (subsample < 1) {
       valid.epoch.loss <- valid.loss / valid.num.batches
@@ -722,7 +703,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
           best.loss <- valid.epoch.loss
           best.epoch <- epoch
           num.nondecresing.epochs <- 0
-          torch::torch_save(model, path = path)
+          torch_save(model, path = path)
         } else {
           num.nondecresing.epochs <- num.nondecresing.epochs + 1
           if (num.nondecresing.epochs >= early.stopping.epochs) {
@@ -736,10 +717,10 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
   # model <- torch::torch_load(path = path)
   if (subsample < 1 & early.stopping.epochs > 1) {
-    model <- torch::torch_load(path = path)
+    model <- torch_load(path = path)
   }
 
-  model<-model$to(device=device)
+  model <- model$to(device = device)
 
   model$eval()
 
@@ -747,23 +728,21 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 
 
   for (i in seq_len(m)) {
+    num.tensor <- move_to_device(tensor = data.tensor$num.tensor, device = device)
+    logi.tensor <- move_to_device(tensor = data.tensor$logi.tensor, device = device)
+    bin.tensor <- move_to_device(tensor = data.tensor$bin.tensor, device = device)
+    multi.tensor <- move_to_device(tensor = data.tensor$multi.tensor, device = device)
+    onehot.tensor <- move_to_device(tensor = data.tensor$onehot.tensor, device = device)
 
-
-    num.tensor<-move_to_device(tensor=data.tensor$num.tensor, device=device)
-    logi.tensor<-move_to_device(tensor=data.tensor$logi.tensor, device=device)
-    bin.tensor<-move_to_device(tensor=data.tensor$bin.tensor, device=device)
-    multi.tensor<-move_to_device(tensor=data.tensor$multi.tensor, device=device)
-    onehot.tensor<-move_to_device(tensor=data.tensor$onehot.tensor, device=device)
-
-    if(categorical.encoding=="embeddings"){
-      Out <- model(num.tensor=num.tensor,logi.tensor=logi.tensor,bin.tensor=bin.tensor, cat.tensor=multi.tensor)
-    }else if(categorical.encoding=="onehot"){
-      Out <- model(num.tensor=num.tensor,logi.tensor=logi.tensor,bin.tensor=bin.tensor, cat.tensor=onehot.tensor)
-    }else{
+    if (categorical.encoding == "embeddings") {
+      Out <- model(num.tensor = num.tensor, logi.tensor = logi.tensor, bin.tensor = bin.tensor, cat.tensor = multi.tensor)
+    } else if (categorical.encoding == "onehot") {
+      Out <- model(num.tensor = num.tensor, logi.tensor = logi.tensor, bin.tensor = bin.tensor, cat.tensor = onehot.tensor)
+    } else {
       stop(cat('categorical.encoding can only be either "embeddings" or "onehot".\n'))
     }
 
-    output.data<-Out$reconstrx$to(device = "cpu")
+    output.data <- Out$reconstrx$to(device = "cpu")
 
     imp.data <- postprocess(output.data = output.data, pre.obj = pre.obj, scaler = scaler)
 
@@ -797,8 +776,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
               stop("pmm.link has to be either `logit` or `prob`")
             }
 
-            data[[var]][na.loc[, var]]<-pmm(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
-
+            data[[var]][na.loc[, var]] <- pmm(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
           } else if (var %in% pre.obj$bin) {
             # binary
             var.idx <- pre.obj$bin.idx[[var]]
@@ -814,10 +792,10 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
               stop("pmm.link has to be either `logit` or `prob`")
             }
 
-            data[[var]][na.loc[, var]]<-pmm(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
+            data[[var]][na.loc[, var]] <- pmm(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
 
-            #level.idx <- pmm.multiclass(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
-            #data[[var]][na.loc[, var]] <- levels(data[[var]])[level.idx]
+            # level.idx <- pmm.multiclass(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
+            # data[[var]][na.loc[, var]] <- levels(data[[var]])[level.idx]
           } else if (var %in% pre.obj$multi) {
             # multiclass
             var.idx <- pre.obj$multi.idx[[var]]
@@ -849,7 +827,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
           if (var %in% pre.obj$num) {
             yhatmis <- imp.data[[var]][na.loc[, var]]
             data[[var]][na.loc[, var]] <- pmm(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
-          }else if (var %in% pre.obj$logi) {
+          } else if (var %in% pre.obj$logi) {
             # binary
             var.idx <- pre.obj$logi.idx[[var]]
             if (pmm.link == "logit") {
@@ -861,8 +839,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
               stop("pmm.link has to be either `logit` or `prob`")
             }
 
-            data[[var]][na.loc[, var]] <-pmm(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
-
+            data[[var]][na.loc[, var]] <- pmm(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
           } else if (var %in% pre.obj$bin) {
             # binary
             var.idx <- pre.obj$bin.idx[[var]]
@@ -875,11 +852,10 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
               stop("pmm.link has to be either `logit` or `prob`")
             }
 
-            data[[var]][na.loc[, var]] <-pmm(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
+            data[[var]][na.loc[, var]] <- pmm(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
 
-            #level.idx <- pmm.multiclass(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
-            #data[[var]][na.loc[, var]] <- levels(data[[var]])[level.idx]
-
+            # level.idx <- pmm.multiclass(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
+            # data[[var]][na.loc[, var]] <- levels(data[[var]])[level.idx]
           } else if (var %in% pre.obj$multi) {
             # multiclass
             var.idx <- pre.obj$multi.idx[[var]]
@@ -981,8 +957,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
               stop("pmm.link has to be either `logit` or `prob`")
             }
 
-            data[[var]][na.loc[, var]] <-pmm(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
-
+            data[[var]][na.loc[, var]] <- pmm(yhatobs = yhatobs, yhatmis = yhatmis, yobs = yobs.list[[var]], k = pmm.k)
           } else if (var %in% pre.obj$multi) {
             # multiclass
             var.idx <- pre.obj$multi.idx[[var]]
@@ -1000,7 +975,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
           for (var in extra.vars) {
             if (var %in% pre.obj$num) {
               yhatobs.list[[i]][[var]] <- imp.data[[var]]
-            }else if (var %in% c(pre.obj$logi)) {
+            } else if (var %in% c(pre.obj$logi)) {
               # binary
               var.idx <- pre.obj$logi.idx[[var]]
 
@@ -1057,7 +1032,7 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
     return(imputed.data)
   } else {
     params <- list()
-    params$scaler <- scaler
+
     params$na.vars <- na.vars
     params$extra.vars <- extra.vars
 
@@ -1068,7 +1043,11 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
     params$pmm.type <- pmm.type
     params$pmm.link <- pmm.link
 
-    params$categorical.encoding<-categorical.encoding
+    params$scaler <- scaler
+    params$lower <-lower
+    params$upper<-upper
+    params$categorical.encoding <- categorical.encoding
+    params$initial.imp<-initial.imp
 
 
 
@@ -1082,23 +1061,45 @@ mivae <- function(data, m = 5, categorical.encoding = "embeddings", device = "cp
 }
 
 
-#' Auxiliary function for pmm.params for mivae
-#' @description Auxiliary function for setting up the default pmm-related parameters for mivae
-vae_pmm_default <-function(pmm.type = NULL, pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL){
-  list(pmm.type = pmm.type, pmm.k = pmm.k, pmm.link = pmm.link, pmm.save.vars = pmm.save.vars)
-}
+
 
 
 #' Auxiliary function for vae.params
-#' @description Auxiliary function for setting up the default vae-related hyperparameters for mivae
-vae_default<-function(shuffle = TRUE, drop.last = FALSE,
-                      beta = 1, input.dropout = 0, hidden.dropout = 0,
-                      optimizer = "adamW", learning.rate = 0.001, weight.decay = 0.01, momentum = 0, dampening = 0, eps = 1e-08, rho = 0.9, alpha = 0.99, learning.rate.decay = 0,
-                      encoder.structure = c(256, 128, 64), latent.dim = 8, decoder.structure = c(64, 128, 256),
-                      act = "elu", init.weight = "he.normal.elu", scaler = "standard",initial.imp = "sample", lower=0.25,upper=0.75){
-  list(shuffle = shuffle, drop.last = drop.last,
-       beta = beta, input.dropout = input.dropout, hidden.dropout = hidden.dropout,
-       optimizer = optimizer, learning.rate = learning.rate, weight.decay = weight.decay, momentum = momentum, dampening = dampening, eps = eps, rho = rho, alpha = alpha, learning.rate.decay = learning.rate.decay,
-       encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure,
-       act = act, init.weight = init.weight, scaler = scaler,initial.imp = initial.imp, lower=lower, upper=upper)
+#' @description Auxiliary function for setting up the default vae-related hyperparameters for mivae.
+#' @param shuffle Whether or not to shuffle training data. Default: \code{TRUE}.
+#' @param drop.last Whether or not to drop the last batch. Default: \code{FALSE}.
+#' @param beta A regularized parameter. Default: 1.
+#' @param input.dropout The dropout probability of the input layer. Default: 0.
+#' @param hidden.dropout The dropout probability of the hidden layers. Default: 0.
+#' @param optimizer The name of the optimizer. Options are : \code{"adamW"} (default), \code{"adam"}, \code{"adadelta"}, \code{"adagrad"}, \code{"rmsprop"}, or \code{"sgd"}.
+#' @param learning.rate The learning rate. Default: 0.001.
+#' @param weight.decay Weight decay (L2 penalty). Default: 0.01.
+#' @param momentum Parameter for the \code{"sgd"} optimizer (default: 0). It is used for accelerating SGD in the relevant direction and dampens oscillations.
+#' @param dampening Dampening for momentum (default: 0) used for the \code{"sgd"} optimizer.
+#' @param eps A small positive value (default: 1e-08) used to prevent division by zero for optimizers \code{"adamW"}, \code{"adam"}, \code{"adadelta"},\code{"adagrad"} and \code{"rmsprop"}.
+#' @param rho Parameter for the \code{"adadelta"} optimizer (default: 0.9). A coefficient used for computing a running average of squared gradients.
+#' @param alpha Smoothing constant (default: 0.99) for the \code{"rmsprop"} optimizer.
+#' @param learning.rate.decay Learning rate decay (default: 0) for the \code{"adagrad"} optimizer.
+#' @param encoder.structure A vector indicating the structure of encoder. Default: c(256, 128, 64)
+#' @param latent.dim Size of the latent layer. Default: 8.
+#' @param decoder.structure A vector indicating the structure of decoder. Default: c(64, 128, 256)
+#' @param act The name of activation function. Can be: \code{"relu"}, \code{"elu"} (default), \code{"leaky.relu"}, \code{"tanh"}, \code{"sigmoid"} and \code{"identity"}.
+#' @param init.weight The distribution for weight initialization. Can be \code{"he.normal"}, \code{"he.uniform"}, \code{"xavier.uniform"}, \code{"xavier.normal"}, \code{"he.normal.dropout"}, \code{"he.normal.elu"} (default), \code{"he.normal.elu.dropout"}, \code{"he.normal.selu"} or \code{"he.normal.leaky.relu"}.
+#' @param scaler The name of the scaler used for transforming numeric features. Can be \code{"standard"} (default), \code{"minmax"} , \code{"decile"}, \code{"robust"} or \code{"none"}.
+#' @param initial.imp The method for initial imputation. Can be \code{"mean"}, \code{"median"} or \code{"sample"} (default).
+#' @param lower The lower quantile (0.25 by default) for \code{scaler = "robust"}.
+#' @param upper The upper quantile (0.75 by default) for \code{scaler = "robust"}.
+#' @export
+vae_default <- function(shuffle = TRUE, drop.last = FALSE,
+                        beta = 1, input.dropout = 0, hidden.dropout = 0,
+                        optimizer = "adamW", learning.rate = 0.001, weight.decay = 0.01, momentum = 0, dampening = 0, eps = 1e-08, rho = 0.9, alpha = 0.99, learning.rate.decay = 0,
+                        encoder.structure = c(256, 128, 64), latent.dim = 8, decoder.structure = c(64, 128, 256),
+                        act = "elu", init.weight = "he.normal.elu", scaler = "standard", initial.imp = "sample", lower = 0.25, upper = 0.75) {
+  list(
+    shuffle = shuffle, drop.last = drop.last,
+    beta = beta, input.dropout = input.dropout, hidden.dropout = hidden.dropout,
+    optimizer = optimizer, learning.rate = learning.rate, weight.decay = weight.decay, momentum = momentum, dampening = dampening, eps = eps, rho = rho, alpha = alpha, learning.rate.decay = learning.rate.decay,
+    encoder.structure = encoder.structure, latent.dim = latent.dim, decoder.structure = decoder.structure,
+    act = act, init.weight = init.weight, scaler = scaler, initial.imp = initial.imp, lower = lower, upper = upper
+  )
 }

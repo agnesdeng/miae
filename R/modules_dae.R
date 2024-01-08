@@ -1,8 +1,5 @@
-#' Modules for denoising autoencoders
-#' @description Set up an denoising autoencoder imputer object with specified hyperparameters and then obtain multiple imputed datasets
-#' @format  NULL
-#' @importFrom torch nn_module nn_sequential nn_linear nn_relu nn_sigmoid
-#' @export
+#Modules for denoising autoencoders
+#Set up an denoising autoencoder imputer object with specified hyperparameters and then obtain multiple imputed datasets
 # build an autoencoders
 dae <- nn_module(
   "dae",

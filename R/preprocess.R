@@ -1,9 +1,5 @@
-#' Pre-process data before imputation: scale numeric and one-hot categorical
-#' @importFrom torch torch_tensor torch_cat nnf_one_hot
-#' @importFrom dplyr mutate_all
-#' @importFrom stats median
-#' @export
-preprocess <- function(data, scaler = "none", lower, upper, categorical.encoding = "embeddings",initial.imp = "sample") {
+#Pre-process data before imputation: scale numeric and one-hot categorical
+preprocess <- function(data, scaler, lower, upper, categorical.encoding,initial.imp) {
   Types <- feature_type(data)
 
   # Types
@@ -112,7 +108,7 @@ preprocess <- function(data, scaler = "none", lower, upper, categorical.encoding
     }
 
 
-    data.tensor$num.tensor <- torch::torch_tensor(num.mat)
+    data.tensor$num.tensor <- torch_tensor(num.mat)
 
     num.idx <- vector("list", length = length(num))
     names(num.idx) <- num
@@ -202,7 +198,7 @@ preprocess <- function(data, scaler = "none", lower, upper, categorical.encoding
 
       # float type
 
-      data.tensor$logi.tensor <- torch::torch_tensor(logi.mat, dtype = torch_float())
+      data.tensor$logi.tensor <- torch_tensor(logi.mat, dtype = torch_float())
       # data.tensor <- torch::torch_cat(list(data.tensor, logi.tensor), dim = 2)
 
 
@@ -249,7 +245,7 @@ preprocess <- function(data, scaler = "none", lower, upper, categorical.encoding
         as.matrix()
       # float type
 
-      data.tensor$bin.tensor <- torch::torch_tensor(bin.mat)
+      data.tensor$bin.tensor <- torch_tensor(bin.mat)
       # data.tensor <- torch::torch_cat(list(data.tensor, bin.tensor), dim = 2)
 
 
@@ -295,7 +291,7 @@ preprocess <- function(data, scaler = "none", lower, upper, categorical.encoding
 
       # cardinalities: the number of levels
       cardinalities <- multi.mat %>%
-        dplyr::summarise(across(.cols = everything(), .fns = nlevels)) %>%
+        dplyr::summarise(dplyr::across(.cols = dplyr::everything(), .fns = nlevels)) %>%
         unlist()
 
       multi.idx <- vector("list", length = length(multi))
@@ -317,7 +313,7 @@ preprocess <- function(data, scaler = "none", lower, upper, categorical.encoding
 
         # Note:  long type can't use torch_cat()
 
-        data.tensor$multi.tensor <- torch::torch_tensor(multi.mat)
+        data.tensor$multi.tensor <- torch_tensor(multi.mat)
 
 
 
@@ -340,11 +336,12 @@ preprocess <- function(data, scaler = "none", lower, upper, categorical.encoding
         names(onehot.list) <- multi
 
         for (var in multi) {
-          onehot.list[[var]] <- torch::nnf_one_hot(torch::torch_tensor(as.integer(multi.mat[[var]])))
+
+          onehot.list[[var]] <- nnf_one_hot(torch_tensor(as.integer(multi.mat[[var]])), num_classes=cardinalities[var])
         }
 
         # combine numeric data with one-hot encoded categorical variables
-        data.tensor$onehot.tensor <- torch::torch_cat(onehot.list, dim = 2)
+        data.tensor$onehot.tensor <- torch_cat(onehot.list, dim = 2)
 
 
         multi.mat <- multi.mat %>%
@@ -354,7 +351,7 @@ preprocess <- function(data, scaler = "none", lower, upper, categorical.encoding
 
         # Note:  long type can't use torch_cat()
 
-        data.tensor$multi.tensor <- torch::torch_tensor(multi.mat)
+        data.tensor$multi.tensor <- torch_tensor(multi.mat)
 
         # head(onehot.list$DMARACER)
         # head(multi.mat$DMARACER)

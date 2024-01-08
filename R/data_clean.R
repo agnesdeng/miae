@@ -5,6 +5,7 @@
 #' @return A preliminary cleaned dataset
 #' @export
 #' @examples
+#' data(nhanes3)
 #' rawdata <- nhanes3
 #'
 #' rawdata[4, 4] <- NaN

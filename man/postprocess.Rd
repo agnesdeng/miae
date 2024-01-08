@@ -10,6 +10,8 @@ postprocess(output.data, pre.obj, scaler)
 \item{output.data}{raw output data from autoencoders}
 
 \item{pre.obj}{preprocess data object}
+
+\item{scaler}{scaler used to scale the data}
 }
 \description{
 postprocess data

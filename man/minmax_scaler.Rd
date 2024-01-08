@@ -8,6 +8,8 @@ minmax_scaler(data, initial.imp = "sample")
 }
 \arguments{
 \item{data}{A data frame or tibble}
+
+\item{initial.imp}{The method for initial imputation. Can be "mean", "median" or "sample" (default).}
 }
 \description{
 scale a dataset using minmax and return a scaled dataframe, the colmin and colmax of each column

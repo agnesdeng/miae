@@ -8,6 +8,10 @@ robust(x, lower = 0.25, upper = 0.75)
 }
 \arguments{
 \item{x}{a vector}
+
+\item{lower}{The lower quantile (25\% by default)}
+
+\item{upper}{The upper quantile (75\% by default)}
 }
 \description{
 scale a vector using robust scaler

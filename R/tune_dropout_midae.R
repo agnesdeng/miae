@@ -1,3 +1,33 @@
+#' Tune dropout rate for midae
+#' @param data A dataset on which the midae model will be trained.
+#' @param dropout.grid A list containing two vectors: `input.dropout` and
+#'   `hidden.dropout`, each specifying the dropout rates to be tested for
+#'   the input layer and hidden layers, respectively.
+#' @param m The number of imputations to perform.
+#' @param categorical.encoding The method used for encoding categorical
+#'   variables. Defaults to "embeddings".
+#' @param device The computing device to use, either "cpu" or "cuda" for GPU.
+#' @param epochs The number of training epochs for each model.
+#' @param batch.size The size of the batches used in training.
+#' @param subsample The proportion of the data to be used in training.
+#'   Defaults to 1, meaning the full dataset is used.
+#' @param early.stopping.epochs The number of epochs with no improvement
+#'   after which training will be stopped.
+#' @param pmm.params A list of parameters for predictive mean matching.
+#' @param dae.params A list of parameters for the denoising autoencoder.
+#' @param loss.na.scale Boolean flag indicating whether to scale the loss
+#'   function based on NA values. Defaults to FALSE.
+#' @param verbose Boolean flag to control the verbosity of the function's output.
+#' @param print.every.n Specifies how often (in epochs) to print the training
+#'   progress. Only relevant if verbose is TRUE.
+#' @param save.model Boolean flag indicating whether to save the trained model.
+#' @param path File path where the model should be saved if save.model is TRUE.
+#'   If NULL and save.model is TRUE, the model is saved in the current directory.
+#' @return A list containing the tuned parameters and their corresponding
+#'   performance metrics.
+#' @examples
+#' 1+1
+#' @export
 tune_dropout_midae<- function(data, dropout.grid = list(input.dropout=c(0,0.25,0.5),hidden.dropout=c(0, 0.25, 0.5)),
                                   m = 5, categorical.encoding = "embeddings", device = "cpu",
                                   epochs = 5, batch.size = 32,
@@ -270,16 +300,16 @@ tune_dropout_midae<- function(data, dropout.grid = list(input.dropout=c(0,0.25,0
 
 
     # define the loss function for different variables
-    num_loss <- torch::nn_mse_loss(reduction = "mean")
-    logi_loss <- torch::nn_bce_with_logits_loss(reduction = "mean")
-    bin_loss <- torch::nn_bce_with_logits_loss(reduction = "mean")
-    multi_loss <- torch::nn_cross_entropy_loss(reduction = "mean")
+    num_loss <- nn_mse_loss(reduction = "mean")
+    logi_loss <- nn_bce_with_logits_loss(reduction = "mean")
+    bin_loss <- nn_bce_with_logits_loss(reduction = "mean")
+    multi_loss <- nn_cross_entropy_loss(reduction = "mean")
 
 
 
     # choose optimizer & learning rate
     if (optim.name  == "adamW") {
-      optimizer <- optim_adamw(model$parameters, lr = learning.rate, eps = eps, weight_decay = weight.decay)
+      optimizer <- torchopt::optim_adamw(model$parameters, lr = learning.rate, eps = eps, weight_decay = weight.decay)
     } else if (optim.name  == "sgd") {
       optimizer <- optim_sgd(model$parameters, lr = learning.rate, momentum = momentum, dampening = dampening, weight_decay = weight.decay)
     } else if (optim.name  == "adam") {# torch default eps = 1e-08, tensorfolow default eps =1e-07
@@ -310,7 +340,7 @@ tune_dropout_midae<- function(data, dropout.grid = list(input.dropout=c(0,0.25,0
 
       #rearrange all the data in each epoch
       if(shuffle){
-        permute<-torch::torch_randperm(train.samples)+1L
+        permute<-torch_randperm(train.samples)+1L
 
       }else{
         permute<-torch_tensor(1:train.samples)
@@ -515,7 +545,7 @@ tune_dropout_midae<- function(data, dropout.grid = list(input.dropout=c(0,0.25,0
 
         #rearrange all the data in each epoch
         if(shuffle){
-          permute<-torch::torch_randperm(valid.samples)+1L
+          permute<-torch_randperm(valid.samples)+1L
         }else{
           permute<-torch_tensor(1:valid.samples)
         }
@@ -703,7 +733,7 @@ tune_dropout_midae<- function(data, dropout.grid = list(input.dropout=c(0,0.25,0
           cat(sprintf("Loss at epoch %d: %1f\n", epoch, train.loss / train.num.batches))
         }
         if (save.model & epoch == epochs) {
-          torch::torch_save(model, path = path)
+          torch_save(model, path = path)
         }
       }else if(subsample<1){
         valid.epoch.loss <- valid.loss / valid.num.batches
@@ -715,7 +745,7 @@ tune_dropout_midae<- function(data, dropout.grid = list(input.dropout=c(0,0.25,0
             best.loss <- valid.epoch.loss
             best.epoch<-epoch
             num.nondecresing.epochs <- 0
-            torch::torch_save(model, path = path)
+            torch_save(model, path = path)
           }else{
             num.nondecresing.epochs <- num.nondecresing.epochs + 1
             if(num.nondecresing.epochs >= early.stopping.epochs){
@@ -730,7 +760,7 @@ tune_dropout_midae<- function(data, dropout.grid = list(input.dropout=c(0,0.25,0
 
     # model <- torch::torch_load(path = path)
     if (subsample < 1 & early.stopping.epochs > 1) {
-      model <- torch::torch_load(path = path)
+      model <- torch_load(path = path)
     }
 
     model<-model$to(device=device)

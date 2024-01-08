@@ -1,15 +1,11 @@
-#' Modules for variational autoencoders (separate encoder and decoder)
-#' @description variational autoencoders (separate encoder and decoder)
-#' @format  NULL
-#' @importFrom torch nn_module nn_sequential nn_linear nn_relu nn_sigmoid
-#' @export
+#Modules for variational autoencoders (separate encoder and decoder)
 vae.encoder<-nn_module(
   "vae.encoder",
   initialize = function(categorical.encoding, n.others, cardinalities, embedding.dim,
                         input.dropout, hidden.dropout, encoder.structure, latent.dim, act) {
-    
+
     self$categorical.encoding <- categorical.encoding
-    
+
     if(!is.null(embedding.dim)){
       if(categorical.encoding == "embeddings"){
         self$embedder <- embedding_module(cardinalities, embedding.dim)
@@ -22,15 +18,15 @@ vae.encoder<-nn_module(
     }else{
       n.features<-n.others
     }
-    
-    
-    
+
+
+
     n.outputs<-n.others+sum(cardinalities)
-    
+
     self$input.dropout <- input.dropout
     self$hidden.dropout <- hidden.dropout
     self$embedding.dim <- embedding.dim
-    
+
     # encoder
     encoder.list <- list()
     for (i in seq_along(encoder.structure)) {
@@ -40,7 +36,7 @@ vae.encoder<-nn_module(
       } else {
         encoder.list[[2 * i - 1]] <- nn_linear(encoder.structure[i - 1], encoder.structure[i])
       }
-      
+
       if (act == "relu") {
         encoder.list[[2 * i]] <- nn_relu()
       } else if (act == "elu") {
@@ -59,18 +55,18 @@ vae.encoder<-nn_module(
         stop("This activation function is not supported yet")
       }
     }
-    
+
     # encoder.list[[2*length(encoder.structure)+1]]<- nn_linear(encoder.structure[i],latent.dim)
-    
+
     self$encoder <- nn_module_list(modules = encoder.list)
     self$latent.dim <- latent.dim
     self$mean <- nn_linear(encoder.structure[length(encoder.structure)], latent.dim)
     self$log_var <- nn_linear(encoder.structure[length(encoder.structure)], latent.dim)
-    
+
   },
-  
+
   forward = function(num.tensor, logi.tensor, bin.tensor, cat.tensor){
-    
+
     if(!is.null(self$embedding.dim)){
     #multi-class
     if(self$categorical.encoding=="embeddings"){
@@ -87,30 +83,30 @@ vae.encoder<-nn_module(
       L<-Filter(Negate(is.null),L)
       x<-torch_cat(L,dim=2)
     }
-    
+
   }else{
     #only numeric or binary
     L<-list(num.tensor, logi.tensor, bin.tensor)
     L<-Filter(Negate(is.null),L)
     x<-torch_cat(L,dim=2)
   }
-  
+
 
   x <- nnf_dropout(input = x, p = self$input.dropout, inplace = FALSE)
-  
+
   for (i in 1:length(self$encoder)) {
     x <- self$encoder[[i]](x)
-    
+
     if (i %% 2 == 0) {
       x <- nnf_dropout(input = x, p = self$hidden.dropout, inplace = FALSE)
     }
   }
-  
+
   mu <- self$mean(x)
   log.var <- self$log_var(x)
   list("mu"=mu,"log.var"=log.var)
   }
- 
+
 )
 
 
@@ -131,7 +127,7 @@ vae.decoder<-nn_module(
       } else {
         decoder.list[[2 * i - 1]] <- nn_linear(decoder.structure[i - 1], decoder.structure[i])
       }
-      
+
       if (act == "relu") {
         decoder.list[[2 * i]] <- nn_relu()
       } else if (act == "elu") {
@@ -150,25 +146,25 @@ vae.decoder<-nn_module(
         stop("This activation function is not supported yet")
       }
     }
-    
+
     num.dlayers <- length(decoder.structure)
     n.outputs<-n.others+sum(cardinalities)
-    
+
     decoder.list[[2 * length(decoder.structure) + 1]] <- nn_linear(decoder.structure[num.dlayers], n.outputs)
-    
-    
+
+
     self$hidden.dropout <- hidden.dropout
     self$decoder <- nn_module_list(modules = decoder.list)
-    
-   
-    
+
+
+
   },
-  
+
   forward = function(z){
-    
+
     for (i in 1:length(self$decoder)) {
       z <- self$decoder[[i]](z)
-      
+
       if (i %% 2 == 0) {
         z <- nnf_dropout(input = z, p = self$hidden.dropout, inplace = FALSE)
       }
@@ -187,25 +183,25 @@ vae.encoder.decoder<-nn_module(
     self$Decoder<-vae.decoder(n.others, cardinalities,hidden.dropout, latent.dim, decoder.structure, act)
   },
   forward=function(num.tensor, logi.tensor, bin.tensor, cat.tensor){
-    
+
     encoder.output<-self$Encoder(num.tensor, logi.tensor, bin.tensor, cat.tensor)
-  
+
     mu<-encoder.output$mu
     log.var<-encoder.output$log.var
-    
+
     ### reparameterization
     std <- torch_exp(log.var$mul(0.5))
     eps <- torch_randn_like(std)
     z <- mu + eps * std
-    
+
     ##decoder output
     z<-self$Decoder(z)
     list("reconstrx" = z, "mu" = mu, "log.var" = log.var)
-    
-    
+
+
   }
 )
-    
-    
+
+
 
 

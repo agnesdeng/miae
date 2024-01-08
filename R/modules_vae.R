@@ -1,8 +1,5 @@
-#' Modules for variational autoencoders
-#' @description Set up a autoencoder imputer object with specified hyperparameters and then obtain multiple imputed datasets
-#' @format  NULL
-#' @importFrom torch nn_module nn_sequential nn_linear nn_relu nn_sigmoid
-#' @export
+#Modules for variational autoencoders
+#Set up a autoencoder imputer object with specified hyperparameters and then obtain multiple imputed datasets
 vae <- nn_module(
   "vae",
   initialize = function(categorical.encoding, n.others, cardinalities, embedding.dim,

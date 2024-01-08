@@ -8,6 +8,8 @@ standard_scaler(data, initial.imp = "sample")
 }
 \arguments{
 \item{data}{A data frame or tibble}
+
+\item{initial.imp}{The method for initial imputation. Can be "mean", "median" or "sample" (default).}
 }
 \description{
 scale a dataset using stardardize and return a scaled dataframe, the colmean and colsd of each column

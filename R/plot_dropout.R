@@ -11,7 +11,7 @@ plot_dropout<-function(tune.results, var.name, xlim = NULL, ylim = NULL){
   observed.vec<-tune.results$observed.data[[var.name]]
   observed.df<-data.frame(observed=observed.vec)
 
-  longer.tbl<-lapply(tune.results$imputed.missing[[var.name]],tidyr::pivot_longer,cols = starts_with("m"),names_to="set")
+  longer.tbl<-lapply(tune.results$imputed.missing[[var.name]],tidyr::pivot_longer,cols = dplyr::starts_with("m"),names_to="set")
   all.tbl<-do.call(rbind,longer.tbl)
 
   all.tbl <- all.tbl %>%

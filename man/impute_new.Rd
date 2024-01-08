@@ -14,6 +14,8 @@ impute_new(object, newdata, pmm.k = NULL, m = NULL, verbose = FALSE)
 \item{pmm.k}{The number of donors for predictive mean matching. If \code{NULL} (the default), the \code{pmm.k} value in the saved imputer object will be used.}
 
 \item{m}{The number of imputed datasets. If \code{NULL} (the default), the \code{m} value in the saved imputer object will be used.}
+
+\item{verbose}{A logical value indicating whether to print the progress.}
 }
 \value{
 A list of \code{m} imputed datasets for new data.

@@ -6,6 +6,9 @@
 \usage{
 samples(x)
 }
+\arguments{
+\item{x}{a vector}
+}
 \description{
 Random sampling from observed values
 }
