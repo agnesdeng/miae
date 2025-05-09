@@ -14,8 +14,11 @@ tune_dropout_midae(
   batch.size = 32,
   subsample = 1,
   early.stopping.epochs = 1,
-  pmm.params = list(),
   dae.params = list(),
+  pmm.type = NULL,
+  pmm.k = 5,
+  pmm.link = "prob",
+  pmm.save.vars = NULL,
   loss.na.scale = FALSE,
   verbose = TRUE,
   print.every.n = 1,
@@ -47,8 +50,6 @@ Defaults to 1, meaning the full dataset is used.}
 \item{early.stopping.epochs}{The number of epochs with no improvement
 after which training will be stopped.}
 
-\item{pmm.params}{A list of parameters for predictive mean matching.}
-
 \item{dae.params}{A list of parameters for the denoising autoencoder.}
 
 \item{loss.na.scale}{Boolean flag indicating whether to scale the loss
@@ -63,6 +64,8 @@ progress. Only relevant if verbose is TRUE.}
 
 \item{path}{File path where the model should be saved if save.model is TRUE.
 If NULL and save.model is TRUE, the model is saved in the current directory.}
+
+\item{pmm.params}{A list of parameters for predictive mean matching.}
 }
 \value{
 A list containing the tuned parameters and their corresponding

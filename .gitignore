@@ -42,3 +42,5 @@ inst/doc
 
 # Windows desktop hidden file
 desktop.ini
+# Mac
+.DS_Store

@@ -33,8 +33,8 @@ tune_dropout_midae<- function(data, dropout.grid = list(input.dropout=c(0,0.25,0
                                   epochs = 5, batch.size = 32,
                                   subsample = 1,
                                   early.stopping.epochs = 1,
-                                  pmm.params=list(),
                                   dae.params=list(),
+                                  pmm.type = NULL, pmm.k = 5, pmm.link = "prob", pmm.save.vars = NULL,
                                   loss.na.scale = FALSE,
                                   verbose = TRUE, print.every.n = 1,
                                   save.model = FALSE, path = NULL) {
@@ -43,7 +43,7 @@ tune_dropout_midae<- function(data, dropout.grid = list(input.dropout=c(0,0.25,0
   device <- torch_device(device)
 
   dae.params <- do.call("dae_default", dae.params)
-  pmm.params <- do.call("dae_pmm_default", pmm.params)
+  #pmm.params <- do.call("dae_pmm_default", pmm.params)
 
 
   shuffle <- dae.params$shuffle
@@ -75,10 +75,10 @@ tune_dropout_midae<- function(data, dropout.grid = list(input.dropout=c(0,0.25,0
 
 
 
-  pmm.type <- pmm.params$pmm.type
-  pmm.k <- pmm.params$pmm.k
-  pmm.link <- pmm.params$pmm.link
-  pmm.save.vars <- pmm.params$pmm.save.vars
+  #pmm.type <- pmm.params$pmm.type
+  #pmm.k <- pmm.params$pmm.k
+  #pmm.link <- pmm.params$pmm.link
+  #pmm.save.vars <- pmm.params$pmm.save.vars
 
 
 
@@ -1107,7 +1107,7 @@ tune_dropout_midae<- function(data, dropout.grid = list(input.dropout=c(0,0.25,0
 
 
 
-
+####Not in use yet
 #return a list of [[N]][[M]] all results of N models, each model have M imputed dataset
 #Note: not memory efficient
 #return all imputed datasets
