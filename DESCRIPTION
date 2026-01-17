@@ -1,6 +1,6 @@
 Package: miae
 Title: Multiple Imputation Through Autoencoders
-Version: 0.0.0.9000
+Version: 0.0.1
 Authors@R: c(
     person(given = "Yongshi", family ="Deng", email = "yongshi.deng@auckland.ac.nz",
            role = c("aut","cre"),comment =c(ORCID = "0000-0001-5845-859X")),
@@ -34,5 +34,5 @@ Suggests:
     RColorBrewer
 Depends: R (>= 3.5.0)
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.3
 VignetteBuilder: knitr

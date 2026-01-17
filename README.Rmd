@@ -4,26 +4,30 @@ output: github_document
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  echo = TRUE,
-  collapse = TRUE,
-  comment = "#>",
-  fig.path = "man/figures/README-",
-  tidy.opts = list(width.cutoff = 60), tidy = TRUE,
-  dpi = 150, fig.asp = 0.5, fig.width = 7, fig.retina = 1,
-  out.width = "95%",
-  warning = FALSE, message = FALSE
-)
-```
 
-# miae
+
+# miae <a href="https://agnesdeng.github.io/miae/"><img src="man/figures/logo.png" align="right" height="138" alt="miae website" /></a>
+
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-**miae** is an R package for multiple imputation through autoencoders built with **Torch**. It's currently under development.
+**miae** is an R package for multiple imputation through autoencoders built with **Torch**. 
 
+```{r,setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  tidy = TRUE,
+  tidy.opts = list(width.cutoff = 60),
+  dev = "svg",
+  dpi = 100,
+  fig.retina = 1,
+  fig.width = 9,
+  fig.height = 3.5,
+  out.width = "100%"
+)
+```
 
 ## 1. Installation
 
@@ -34,7 +38,7 @@ You can install the current development version of miae from [GitHub](https://gi
 ```
 
 ``` {r}
-#To load the nhanes3_newborn dataset from the R package mixgb
+#To load the newborn dataset from the R package mixgb
 library(mixgb)
 #To obtain visualization diagnostics plot
 library(vismi)
@@ -44,17 +48,16 @@ library(miae)
 
 ## 2. Multiple imputation with denoising autoencoder with dropout
 ```{r}
-#load the nhanes3_newborn dataset from the R package mixgb
-data("nhanes3_newborn")
-str(nhanes3_newborn)
-colSums(is.na(nhanes3_newborn))
+#load the newborn dataset from the R package mixgb
+data("newborn")
+str(newborn)
+colSums(is.na(newborn))
 ```
 
 ```{r,eval=FALSE}
 #use default setting
-midae.default <- midae(data = nhanes3_newborn, m = 5,
+midae_imp <- midae(data = newborn, m = 5,
                        save.model = TRUE, path = file.path (tempdir ( ), "midaemodel.pt"))
-)
 ```
 
 ```{r}
@@ -65,7 +68,7 @@ params<-list(input.dropout = 0.1, hidden.dropout = 0.3,
              act = "elu",
              init.weight = "he.normal.elu.dropout")
 
-midae.data<- midae(data = nhanes3_newborn, m = 5, 
+midae_imp<- midae(data = newborn, m = 5, 
                        categorical.encoding = "onehot", device = "cpu", 
                        epochs = 10, batch.size = 32, 
                        subsample = 1, early.stopping.epochs = 1,
@@ -76,23 +79,20 @@ midae.data<- midae(data = nhanes3_newborn, m = 5,
 
 ```{r, eval= FALSE}
 # obtain the fifth imputed dataset
-midae.data[[5]]
+midae_imp[[5]]
 ``` 
 
 
 ```{r}
-# show the imputed values for missing entries in the variable "BMPHEAD"
-show_var(imputation.list = midae.data, var.name = "BMPHEAD", original.data = nhanes3_newborn)
-plot2D(imputation.list = midae.data,  var.x = "BMPHEAD", var.y = "BMPRECUM", original.data = nhanes3_newborn)
+vismi(data = newborn, imp_list = midae_imp, x="recumbent_length_cm", y="head_circumference_cm")
 ```
 
 ## 3. Multiple imputation with variational autoencoder
 
 ```{r,eval=FALSE}
 #use default setting
-mivae.default <- mivae(data = nhanes3_newborn, m = 5,
+mivae.default <- mivae(data = newborn, m = 5,
                        save.model = TRUE, path = file.path (tempdir ( ), "mivaemodel.pt"))
-)
 ```
 
 ```{r}
@@ -103,7 +103,7 @@ params<-list(beta = 0.95,
              act = "elu",
              init.weight = "he.normal.elu")
 
-mivae.data<- mivae(data = nhanes3_newborn, m = 5, 
+mivae_imp<- mivae(data = newborn, m = 5, 
                    categorical.encoding = "onehot", device = "cpu", 
                    epochs = 10, batch.size = 32, 
                    subsample =1, 
@@ -111,23 +111,25 @@ mivae.data<- mivae(data = nhanes3_newborn, m = 5,
                    save.model = FALSE, path = file.path (tempdir ( ), "mivaemodel.pt"))
 
 ```
+
+
 ```{r}
-plot2D(imputation.list = mivae.data,  var.x = "BMPHEAD", var.y = "BMPRECUM", original.data = nhanes3_newborn, shape = T)
+vismi(data = newborn, imp_list = mivae_imp, x="recumbent_length_cm", y="head_circumference_cm")
 ```
 
 
 ## 4. Impute new data using a saved imputation model
 ```{r}
-set.seed(2023)
-n <- nrow(nhanes3_newborn)
+set.seed(2026)
+n <- nrow(newborn)
 idx <- sample(1:n, size = round(0.7 * n), replace = FALSE)
-train.data <- nhanes3_newborn[idx, ]
-test.data <- nhanes3_newborn[-idx, ]
+train_data <- newborn[idx, ]
+test_data <- newborn[-idx, ]
 ```
 
 
 ```{r}
-mivae.obj<- mivae(data = train.data, m = 5, 
+mivae_obj<- mivae(data = train_data, m = 5, 
                    categorical.encoding = "onehot", device = "cpu", 
                    epochs = 10, batch.size = 32, 
                    vae.params = params, pmm.type = NULL, 
@@ -135,5 +137,5 @@ mivae.obj<- mivae(data = train.data, m = 5,
 ```
 
 ```{r}
-mivae.newdata <- impute_new(object = mivae.obj, newdata = test.data, m = 5)
+mivae_imp_new <- impute_new(object = mivae_obj, newdata = test_data, m = 5)
 ```
