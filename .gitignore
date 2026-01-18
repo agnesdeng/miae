@@ -44,4 +44,6 @@ inst/doc
 desktop.ini
 # Mac
 .DS_Store
-docs
+
+# others
+notes
