@@ -43,9 +43,17 @@
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-other-packages" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Other packages</button>
+  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdown-other-packages">
+<li><a class="external-link dropdown-item" href="https://agnesdeng.github.io/mixgb/">mixgb</a></li>
+    <li><a class="external-link dropdown-item" href="https://agnesdeng.github.io/vismi/">vismi</a></li>
+  </ul>
+</li>
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json">
 </form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/agnesdeng/miae/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -70,17 +78,8 @@
 <code class="sourceCode R"><span><span class="co"># install.packages("devtools")</span></span>
 <span><span class="co">#devtools::install_github("agnesdeng/miae")</span></span></code></pre></div>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># To load the newborn dataset from the R package mixgb</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/agnesdeng/mixgb" class="external-link">mixgb</a></span><span class="op">)</span></span>
-<span><span class="co"># To obtain visualization diagnostics plot</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/agnesdeng/vismi" class="external-link">vismi</a></span><span class="op">)</span></span>
-<span><span class="co"># Multiple imputation through autoencoder</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">miae</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Attaching package: 'miae'</span></span>
-<span><span class="co">#&gt; The following objects are masked from 'package:mixgb':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     createNA, impute_new</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="co"># Multiple imputation through autoencoder</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://agnesdeng.github.io/miae/" class="external-link">miae</a></span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="id_2-multiple-imputation-with-denoising-autoencoder-with-dropout">2. Multiple imputation with denoising autoencoder with dropout<a class="anchor" aria-label="anchor" href="#id_2-multiple-imputation-with-denoising-autoencoder-with-dropout"></a>
@@ -140,32 +139,28 @@
 <span>    save.model <span class="op">=</span> <span class="cn">FALSE</span>, path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"midaemodel.pt"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "cpu"</span></span>
 <span><span class="co">#&gt; [1] "Running midae()."</span></span>
-<span><span class="co">#&gt; Loss at epoch 1: 12.488301</span></span>
-<span><span class="co">#&gt; Loss at epoch 2: 11.565661</span></span>
-<span><span class="co">#&gt; Loss at epoch 3: 10.562836</span></span>
-<span><span class="co">#&gt; Loss at epoch 4: 9.626559</span></span>
-<span><span class="co">#&gt; Loss at epoch 5: 9.068845</span></span>
-<span><span class="co">#&gt; Loss at epoch 6: 8.649516</span></span>
-<span><span class="co">#&gt; Loss at epoch 7: 8.380188</span></span>
-<span><span class="co">#&gt; Loss at epoch 8: 8.107727</span></span>
-<span><span class="co">#&gt; Loss at epoch 9: 7.987867</span></span>
-<span><span class="co">#&gt; Loss at epoch 10: 7.818303</span></span></code></pre></div>
+<span><span class="co">#&gt; Loss at epoch 1: 12.553520</span></span>
+<span><span class="co">#&gt; Loss at epoch 2: 11.662949</span></span>
+<span><span class="co">#&gt; Loss at epoch 3: 10.845940</span></span>
+<span><span class="co">#&gt; Loss at epoch 4: 10.078706</span></span>
+<span><span class="co">#&gt; Loss at epoch 5: 9.518300</span></span>
+<span><span class="co">#&gt; Loss at epoch 6: 9.078888</span></span>
+<span><span class="co">#&gt; Loss at epoch 7: 8.774153</span></span>
+<span><span class="co">#&gt; Loss at epoch 8: 8.446442</span></span>
+<span><span class="co">#&gt; Loss at epoch 9: 8.279809</span></span>
+<span><span class="co">#&gt; Loss at epoch 10: 8.025958</span></span></code></pre></div>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># obtain the fifth imputed dataset</span></span>
 <span><span class="va">midae_imp</span><span class="op">[[</span><span class="fl">5</span><span class="op">]</span><span class="op">]</span></span></code></pre></div>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/vismi/man/vismi.html" class="external-link">vismi</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">newborn</span>, imp_list <span class="op">=</span> <span class="va">midae_imp</span>, x <span class="op">=</span> <span class="st">"recumbent_length_cm"</span>,</span>
-<span>    y <span class="op">=</span> <span class="st">"head_circumference_cm"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="README_files/figure-gfm/unnamed-chunk-6-1.svg" alt="" width="100%"></p>
 </div>
 <div class="section level2">
 <h2 id="id_3-multiple-imputation-with-variational-autoencoder">3. Multiple imputation with variational autoencoder<a class="anchor" aria-label="anchor" href="#id_3-multiple-imputation-with-variational-autoencoder"></a>
 </h2>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># use default setting</span></span>
 <span><span class="va">mivae.default</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mivae.html">mivae</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">newborn</span>, m <span class="op">=</span> <span class="fl">5</span>, save.model <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>    path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"mivaemodel.pt"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># use customized setting</span></span>
 <span><span class="va">params</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>beta <span class="op">=</span> <span class="fl">0.95</span>, optimizer <span class="op">=</span> <span class="st">"adamW"</span>, learning.rate <span class="op">=</span> <span class="fl">1e-04</span>,</span>
 <span>    encoder.structure <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">128</span>, <span class="fl">64</span>, <span class="fl">32</span><span class="op">)</span>, decoder.structure <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">32</span>,</span>
@@ -177,54 +172,58 @@
 <span>    path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"mivaemodel.pt"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "cpu"</span></span>
 <span><span class="co">#&gt; [1] "Running mivae()."</span></span>
-<span><span class="co">#&gt; Loss at epoch 1: 35.675899</span></span>
-<span><span class="co">#&gt; Loss at epoch 2: 19.422141</span></span>
-<span><span class="co">#&gt; Loss at epoch 3: 15.617250</span></span>
-<span><span class="co">#&gt; Loss at epoch 4: 13.763628</span></span>
-<span><span class="co">#&gt; Loss at epoch 5: 12.954665</span></span>
-<span><span class="co">#&gt; Loss at epoch 6: 12.400232</span></span>
-<span><span class="co">#&gt; Loss at epoch 7: 11.831417</span></span>
-<span><span class="co">#&gt; Loss at epoch 8: 11.551251</span></span>
-<span><span class="co">#&gt; Loss at epoch 9: 11.273910</span></span>
-<span><span class="co">#&gt; Loss at epoch 10: 11.021976</span></span></code></pre></div>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/vismi/man/vismi.html" class="external-link">vismi</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">newborn</span>, imp_list <span class="op">=</span> <span class="va">mivae_imp</span>, x <span class="op">=</span> <span class="st">"recumbent_length_cm"</span>,</span>
-<span>    y <span class="op">=</span> <span class="st">"head_circumference_cm"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="README_files/figure-gfm/unnamed-chunk-9-1.svg" alt="" width="100%"></p>
+<span><span class="co">#&gt; Loss at epoch 1: 25.455480</span></span>
+<span><span class="co">#&gt; Loss at epoch 2: 16.476274</span></span>
+<span><span class="co">#&gt; Loss at epoch 3: 14.140675</span></span>
+<span><span class="co">#&gt; Loss at epoch 4: 12.873726</span></span>
+<span><span class="co">#&gt; Loss at epoch 5: 12.191654</span></span>
+<span><span class="co">#&gt; Loss at epoch 6: 11.739553</span></span>
+<span><span class="co">#&gt; Loss at epoch 7: 11.531685</span></span>
+<span><span class="co">#&gt; Loss at epoch 8: 11.051695</span></span>
+<span><span class="co">#&gt; Loss at epoch 9: 10.913696</span></span>
+<span><span class="co">#&gt; Loss at epoch 10: 10.751226</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="id_4-impute-new-data-using-a-saved-imputation-model">4. Impute new data using a saved imputation model<a class="anchor" aria-label="anchor" href="#id_4-impute-new-data-using-a-saved-imputation-model"></a>
 </h2>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">newborn</span><span class="op">)</span></span>
 <span><span class="va">idx</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="va">n</span>, size <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">0.7</span> <span class="op">*</span> <span class="va">n</span><span class="op">)</span>, replace <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="va">train_data</span> <span class="op">&lt;-</span> <span class="va">newborn</span><span class="op">[</span><span class="va">idx</span>, <span class="op">]</span></span>
 <span><span class="va">test_data</span> <span class="op">&lt;-</span> <span class="va">newborn</span><span class="op">[</span><span class="op">-</span><span class="va">idx</span>, <span class="op">]</span></span></code></pre></div>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mivae_obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mivae.html">mivae</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">train_data</span>, m <span class="op">=</span> <span class="fl">5</span>, categorical.encoding <span class="op">=</span> <span class="st">"onehot"</span>,</span>
 <span>    device <span class="op">=</span> <span class="st">"cpu"</span>, epochs <span class="op">=</span> <span class="fl">10</span>, batch.size <span class="op">=</span> <span class="fl">32</span>, vae.params <span class="op">=</span> <span class="va">params</span>,</span>
 <span>    pmm.type <span class="op">=</span> <span class="cn">NULL</span>, save.model <span class="op">=</span> <span class="cn">TRUE</span>, path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>        <span class="st">"mivaemodel.pt"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "cpu"</span></span>
 <span><span class="co">#&gt; [1] "Running mivae()."</span></span>
-<span><span class="co">#&gt; Loss at epoch 1: 29.979715</span></span>
-<span><span class="co">#&gt; Loss at epoch 2: 19.491138</span></span>
-<span><span class="co">#&gt; Loss at epoch 3: 16.139240</span></span>
-<span><span class="co">#&gt; Loss at epoch 4: 14.509602</span></span>
-<span><span class="co">#&gt; Loss at epoch 5: 13.449686</span></span>
-<span><span class="co">#&gt; Loss at epoch 6: 12.711522</span></span>
-<span><span class="co">#&gt; Loss at epoch 7: 12.258354</span></span>
-<span><span class="co">#&gt; Loss at epoch 8: 11.747288</span></span>
-<span><span class="co">#&gt; Loss at epoch 9: 11.562428</span></span>
-<span><span class="co">#&gt; Loss at epoch 10: 11.292023</span></span>
-<span><span class="co">#&gt; [1] "The VAE multiple imputation model is saved in  /var/folders/wz/s9x7fy7d2wsgmcf5kfcv040h0000gn/T//RtmpyzQzyL/mivaemodel.pt"</span></span></code></pre></div>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt; Loss at epoch 1: 33.712145</span></span>
+<span><span class="co">#&gt; Loss at epoch 2: 20.442306</span></span>
+<span><span class="co">#&gt; Loss at epoch 3: 16.230764</span></span>
+<span><span class="co">#&gt; Loss at epoch 4: 14.207821</span></span>
+<span><span class="co">#&gt; Loss at epoch 5: 13.213281</span></span>
+<span><span class="co">#&gt; Loss at epoch 6: 12.523483</span></span>
+<span><span class="co">#&gt; Loss at epoch 7: 12.046045</span></span>
+<span><span class="co">#&gt; Loss at epoch 8: 11.761395</span></span>
+<span><span class="co">#&gt; Loss at epoch 9: 11.433230</span></span>
+<span><span class="co">#&gt; Loss at epoch 10: 11.144126</span></span>
+<span><span class="co">#&gt; [1] "The VAE multiple imputation model is saved in  /var/folders/wz/s9x7fy7d2wsgmcf5kfcv040h0000gn/T//RtmppxD6m6/mivaemodel.pt"</span></span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mivae_imp_new</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/impute_new.html">impute_new</a></span><span class="op">(</span>object <span class="op">=</span> <span class="va">mivae_obj</span>, newdata <span class="op">=</span> <span class="va">test_data</span>,</span>
 <span>    m <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
-  </main><aside class="col-md-3"><div class="license">
+  </main><aside class="col-md-3"><div class="links">
+<h2 data-toc-skip>Links</h2>
+<ul class="list-unstyled">
+<li><a href="https://github.com/agnesdeng/miae/" class="external-link">Browse source code</a></li>
+<li><a href="https://github.com/agnesdeng/miae/issues" class="external-link">Report a bug</a></li>
+</ul>
+</div>
+
+<div class="license">
 <h2 data-toc-skip>License</h2>
 <ul class="list-unstyled">
 <li><a href="LICENSE.html">Full license</a></li>

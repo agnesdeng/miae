@@ -14,17 +14,8 @@ You can install the current development version of miae from
 ```
 
 ``` r
-# To load the newborn dataset from the R package mixgb
-library(mixgb)
-# To obtain visualization diagnostics plot
-library(vismi)
 # Multiple imputation through autoencoder
 library(miae)
-#> 
-#> Attaching package: 'miae'
-#> The following objects are masked from 'package:mixgb':
-#> 
-#>     createNA, impute_new
 ```
 
 ## 2. Multiple imputation with denoising autoencoder with dropout
@@ -88,29 +79,22 @@ midae_imp <- midae(data = newborn, m = 5, categorical.encoding = "onehot",
     save.model = FALSE, path = file.path(tempdir(), "midaemodel.pt"))
 #> [1] "cpu"
 #> [1] "Running midae()."
-#> Loss at epoch 1: 12.488301
-#> Loss at epoch 2: 11.565661
-#> Loss at epoch 3: 10.562836
-#> Loss at epoch 4: 9.626559
-#> Loss at epoch 5: 9.068845
-#> Loss at epoch 6: 8.649516
-#> Loss at epoch 7: 8.380188
-#> Loss at epoch 8: 8.107727
-#> Loss at epoch 9: 7.987867
-#> Loss at epoch 10: 7.818303
+#> Loss at epoch 1: 12.553520
+#> Loss at epoch 2: 11.662949
+#> Loss at epoch 3: 10.845940
+#> Loss at epoch 4: 10.078706
+#> Loss at epoch 5: 9.518300
+#> Loss at epoch 6: 9.078888
+#> Loss at epoch 7: 8.774153
+#> Loss at epoch 8: 8.446442
+#> Loss at epoch 9: 8.279809
+#> Loss at epoch 10: 8.025958
 ```
 
 ``` r
 # obtain the fifth imputed dataset
 midae_imp[[5]]
 ```
-
-``` r
-vismi(data = newborn, imp_list = midae_imp, x = "recumbent_length_cm",
-    y = "head_circumference_cm")
-```
-
-![](README_files/figure-gfm/unnamed-chunk-6-1.svg)
 
 ## 3. Multiple imputation with variational autoencoder
 
@@ -132,24 +116,17 @@ mivae_imp <- mivae(data = newborn, m = 5, categorical.encoding = "onehot",
     path = file.path(tempdir(), "mivaemodel.pt"))
 #> [1] "cpu"
 #> [1] "Running mivae()."
-#> Loss at epoch 1: 35.675899
-#> Loss at epoch 2: 19.422141
-#> Loss at epoch 3: 15.617250
-#> Loss at epoch 4: 13.763628
-#> Loss at epoch 5: 12.954665
-#> Loss at epoch 6: 12.400232
-#> Loss at epoch 7: 11.831417
-#> Loss at epoch 8: 11.551251
-#> Loss at epoch 9: 11.273910
-#> Loss at epoch 10: 11.021976
+#> Loss at epoch 1: 25.455480
+#> Loss at epoch 2: 16.476274
+#> Loss at epoch 3: 14.140675
+#> Loss at epoch 4: 12.873726
+#> Loss at epoch 5: 12.191654
+#> Loss at epoch 6: 11.739553
+#> Loss at epoch 7: 11.531685
+#> Loss at epoch 8: 11.051695
+#> Loss at epoch 9: 10.913696
+#> Loss at epoch 10: 10.751226
 ```
-
-``` r
-vismi(data = newborn, imp_list = mivae_imp, x = "recumbent_length_cm",
-    y = "head_circumference_cm")
-```
-
-![](README_files/figure-gfm/unnamed-chunk-9-1.svg)
 
 ## 4. Impute new data using a saved imputation model
 
@@ -168,17 +145,17 @@ mivae_obj <- mivae(data = train_data, m = 5, categorical.encoding = "onehot",
         "mivaemodel.pt"))
 #> [1] "cpu"
 #> [1] "Running mivae()."
-#> Loss at epoch 1: 29.979715
-#> Loss at epoch 2: 19.491138
-#> Loss at epoch 3: 16.139240
-#> Loss at epoch 4: 14.509602
-#> Loss at epoch 5: 13.449686
-#> Loss at epoch 6: 12.711522
-#> Loss at epoch 7: 12.258354
-#> Loss at epoch 8: 11.747288
-#> Loss at epoch 9: 11.562428
-#> Loss at epoch 10: 11.292023
-#> [1] "The VAE multiple imputation model is saved in  /var/folders/wz/s9x7fy7d2wsgmcf5kfcv040h0000gn/T//RtmpyzQzyL/mivaemodel.pt"
+#> Loss at epoch 1: 33.712145
+#> Loss at epoch 2: 20.442306
+#> Loss at epoch 3: 16.230764
+#> Loss at epoch 4: 14.207821
+#> Loss at epoch 5: 13.213281
+#> Loss at epoch 6: 12.523483
+#> Loss at epoch 7: 12.046045
+#> Loss at epoch 8: 11.761395
+#> Loss at epoch 9: 11.433230
+#> Loss at epoch 10: 11.144126
+#> [1] "The VAE multiple imputation model is saved in  /var/folders/wz/s9x7fy7d2wsgmcf5kfcv040h0000gn/T//RtmppxD6m6/mivaemodel.pt"
 ```
 
 ``` r

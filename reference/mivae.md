@@ -136,9 +136,9 @@ imputed.data <- mivae(
 )
 #> [1] "cpu"
 #> [1] "Running mivae()."
-#> Loss at epoch 1: 12.841611
-#> Loss at epoch 2: 7.017222
-#> Loss at epoch 3: 5.572523
-#> Loss at epoch 4: 5.467991
-#> Loss at epoch 5: 4.717123
+#> Loss at epoch 1: 13.771041
+#> Loss at epoch 2: 7.487528
+#> Loss at epoch 3: 6.105693
+#> Loss at epoch 4: 5.416236
+#> Loss at epoch 5: 4.961515
 ```

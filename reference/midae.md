@@ -135,9 +135,9 @@ imputed.data <- midae(
 )
 #> [1] "cpu"
 #> [1] "Running midae()."
-#> Loss at epoch 1: 7.498226
-#> Loss at epoch 2: 6.597657
-#> Loss at epoch 3: 6.072527
-#> Loss at epoch 4: 5.444873
-#> Loss at epoch 5: 5.092110
+#> Loss at epoch 1: 7.041880
+#> Loss at epoch 2: 6.769073
+#> Loss at epoch 3: 6.082598
+#> Loss at epoch 4: 6.123292
+#> Loss at epoch 5: 5.004550
 ```

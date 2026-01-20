@@ -3,6 +3,14 @@
 Miae offers a scalable solution for imputing large datasets using
 various types of autoencoders.
 
+## See also
+
+Useful links:
+
+- <https://agnesdeng.github.io/miae/>
+
+- Report bugs at <https://github.com/agnesdeng/miae/issues>
+
 ## Author
 
 **Maintainer**: Yongshi Deng <yongshi.deng@auckland.ac.nz>
